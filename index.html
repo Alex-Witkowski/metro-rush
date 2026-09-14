@@ -1,0 +1,1581 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Metro Rush</title>
+  <script>
+    (() => {
+      const param = new URLSearchParams(window.location.search).get("scoutTheme");
+      const theme =
+        param || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+      document.documentElement.setAttribute("data-theme", theme);
+    })();
+  </script>
+  <style>
+    :root {
+      color-scheme: light;
+      --cp-bg: #f7f4ef;
+      --cp-bg-elevated: #fcfbf8;
+      --cp-surface: #ffffff;
+      --cp-surface-soft: #f5f5f5;
+      --cp-border: #dedede;
+      --cp-border-strong: #919191;
+      --cp-text: #242424;
+      --cp-text-muted: #5c5c5c;
+      --cp-text-soft: #6f6f6f;
+      --cp-accent: #b11f4b;
+      --cp-accent-hover: #9a1a41;
+      --cp-accent-soft: rgba(177, 31, 75, 0.08);
+      --cp-accent-fg: #ffffff;
+      --cp-success: #16a34a;
+      --cp-danger: #dc2626;
+      --cp-warning: #f59e0b;
+      --cp-link: #0078d4;
+      --cp-shadow: 0 18px 48px rgba(0, 0, 0, 0.12);
+      --cp-overlay: rgba(255, 255, 255, 0.8);
+      --cp-panel: rgba(255, 255, 255, 0.86);
+      --cp-panel-strong: rgba(255, 255, 255, 0.96);
+      --cp-sheen: rgba(255, 255, 255, 0.55);
+      --cp-highlight: rgba(177, 31, 75, 0.12);
+    }
+    html[data-theme="dark"] {
+      color-scheme: dark;
+      --cp-bg: #3d3b3a;
+      --cp-bg-elevated: #343231;
+      --cp-surface: #292929;
+      --cp-surface-soft: #2e2e2e;
+      --cp-border: #474747;
+      --cp-border-strong: #5f5f5f;
+      --cp-text: #dedede;
+      --cp-text-muted: #919191;
+      --cp-text-soft: #b0b0b0;
+      --cp-accent: #fd8ea1;
+      --cp-accent-hover: #fb7b91;
+      --cp-accent-soft: rgba(253, 142, 161, 0.14);
+      --cp-accent-fg: #1a1a1a;
+      --cp-success: #4ade80;
+      --cp-danger: #f87171;
+      --cp-warning: #fbbf24;
+      --cp-link: #4da6ff;
+      --cp-shadow: 0 18px 48px rgba(0, 0, 0, 0.32);
+      --cp-overlay: rgba(41, 41, 41, 0.88);
+      --cp-panel: rgba(41, 41, 41, 0.72);
+      --cp-panel-strong: rgba(41, 41, 41, 0.96);
+      --cp-sheen: rgba(255, 255, 255, 0.04);
+      --cp-highlight: rgba(253, 142, 161, 0.12);
+    }
+
+    * { box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; }
+    body {
+      background: var(--cp-bg);
+      color: var(--cp-text);
+      font-family: "Segoe UI", Aptos, Calibri, -apple-system, BlinkMacSystemFont, sans-serif;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: none;
+    }
+    button { font: inherit; }
+    .app { position: relative; width: 100%; height: 100%; min-height: 520px; overflow: hidden; }
+    canvas { width: 100%; height: 100%; display: block; }
+
+    .topbar {
+      position: absolute;
+      inset: max(18px, env(safe-area-inset-top)) 20px auto;
+      z-index: 5;
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      pointer-events: none;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 14px 10px 10px;
+      border: 1px solid var(--cp-border);
+      border-radius: 16px;
+      background: var(--cp-panel);
+      box-shadow: 0 0 2px var(--cp-border), 0 1px 2px var(--cp-border-strong);
+      backdrop-filter: blur(12px);
+    }
+    .brand-mark {
+      width: 34px;
+      height: 34px;
+      display: grid;
+      place-items: center;
+      border-radius: 0.625rem;
+      background: var(--cp-accent);
+      color: var(--cp-accent-fg);
+      font-weight: 900;
+      font-style: italic;
+      box-shadow: inset 0 0 0 1px var(--cp-sheen);
+    }
+    .brand-copy { line-height: 1; }
+    .brand-title { display: block; font-size: 15px; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; }
+    .brand-subtitle { display: block; margin-top: 5px; color: var(--cp-text-muted); font-size: 10px; letter-spacing: .14em; text-transform: uppercase; }
+    .stats { display: flex; gap: 8px; }
+    .stat {
+      min-width: 94px;
+      padding: 9px 13px;
+      border: 1px solid var(--cp-border);
+      border-radius: 0.625rem;
+      background: var(--cp-panel);
+      box-shadow: 0 0 2px var(--cp-border), 0 1px 2px var(--cp-border-strong);
+      backdrop-filter: blur(12px);
+      text-align: right;
+    }
+    .stat-label { display: block; color: var(--cp-text-muted); font-size: 9px; font-weight: 700; letter-spacing: .13em; text-transform: uppercase; }
+    .stat-value { display: block; margin-top: 3px; font-family: Consolas, "Courier New", Courier, monospace; font-size: 17px; font-weight: 800; }
+    #coinValue { color: var(--cp-warning); }
+
+    .pause {
+      position: absolute;
+      z-index: 7;
+      right: 20px;
+      bottom: max(20px, env(safe-area-inset-bottom));
+      width: 44px;
+      height: 44px;
+      display: grid;
+      place-items: center;
+      border: 1px solid var(--cp-border);
+      border-radius: 0.625rem;
+      background: var(--cp-panel);
+      color: var(--cp-text);
+      box-shadow: 0 0 2px var(--cp-border), 0 1px 2px var(--cp-border-strong);
+      cursor: pointer;
+      backdrop-filter: blur(12px);
+    }
+    .pause:hover { background: var(--cp-panel-strong); }
+    .pause svg { width: 18px; height: 18px; fill: currentColor; }
+
+    .power-wrap {
+      position: absolute;
+      z-index: 6;
+      left: 50%;
+      bottom: max(22px, env(safe-area-inset-bottom));
+      width: min(300px, 55vw);
+      transform: translateX(-50%);
+      opacity: 0;
+      transition: opacity .2s;
+      pointer-events: none;
+    }
+    .power-wrap.visible { opacity: 1; }
+    .power-label {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 6px;
+      color: var(--cp-accent-fg);
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: .1em;
+      text-shadow: 0 1px 6px var(--cp-text);
+      text-transform: uppercase;
+    }
+    .power-track {
+      height: 7px;
+      overflow: hidden;
+      border: 1px solid var(--cp-border);
+      border-radius: 0.625rem;
+      background: var(--cp-panel);
+    }
+    .power-fill { height: 100%; width: 100%; background: var(--cp-accent); transform-origin: left; }
+
+    .overlay {
+      position: absolute;
+      inset: 0;
+      z-index: 10;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      background: var(--cp-overlay);
+      backdrop-filter: blur(8px);
+      transition: opacity .25s;
+    }
+    .overlay.hidden { opacity: 0; pointer-events: none; }
+    .card {
+      width: min(470px, 100%);
+      padding: 34px;
+      border: 1px solid var(--cp-border);
+      border-radius: 16px;
+      background: var(--cp-surface);
+      box-shadow: var(--cp-shadow);
+      text-align: center;
+    }
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      margin-bottom: 13px;
+      color: var(--cp-accent);
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: .16em;
+      text-transform: uppercase;
+    }
+    .pulse { width: 7px; height: 7px; border-radius: 50%; background: var(--cp-accent); animation: pulse 1.4s infinite; }
+    @keyframes pulse { 50% { opacity: .35; transform: scale(.7); } }
+    h1 { margin: 0; font-size: clamp(42px, 8vw, 72px); line-height: .9; letter-spacing: -.065em; text-transform: uppercase; }
+    h1 span { color: var(--cp-accent); }
+    .intro {
+      max-width: 350px;
+      margin: 18px auto 24px;
+      color: var(--cp-text-muted);
+      font-size: 14px;
+      line-height: 1.55;
+    }
+    .controls {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin-bottom: 24px;
+    }
+    .control {
+      padding: 12px 6px;
+      border: 1px solid var(--cp-border);
+      border-radius: 0.625rem;
+      background: var(--cp-surface-soft);
+    }
+    .keys { display: block; min-height: 24px; color: var(--cp-text); font-family: Consolas, "Courier New", Courier, monospace; font-size: 17px; font-weight: 800; }
+    .action { display: block; margin-top: 5px; color: var(--cp-text-muted); font-size: 9px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
+    .primary {
+      width: 100%;
+      padding: 13px 20px;
+      border: 0;
+      border-radius: 0.625rem;
+      background: var(--cp-accent);
+      color: var(--cp-accent-fg);
+      font-weight: 800;
+      letter-spacing: .04em;
+      cursor: pointer;
+      transition: transform .15s, background .15s;
+    }
+    .primary:hover { background: var(--cp-accent-hover); transform: translateY(-1px); }
+    .primary:active { transform: translateY(1px); }
+    .secondary {
+      width: 100%;
+      margin-top: 8px;
+      padding: 12px 20px;
+      border: 1px solid var(--cp-border);
+      border-radius: 0.625rem;
+      background: var(--cp-surface-soft);
+      color: var(--cp-text);
+      font-weight: 800;
+      cursor: pointer;
+    }
+    .secondary:hover { border-color: var(--cp-border-strong); background: var(--cp-highlight); }
+    .hint { margin: 12px 0 0; color: var(--cp-text-soft); font-size: 10px; }
+    .results {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+      margin: 22px 0;
+    }
+    .result { padding: 14px 8px; border: 1px solid var(--cp-border); border-radius: 0.625rem; background: var(--cp-surface-soft); }
+    .result strong { display: block; font-family: Consolas, "Courier New", Courier, monospace; font-size: 21px; }
+    .result span { display: block; margin-top: 4px; color: var(--cp-text-muted); font-size: 9px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
+
+    .flash { position: absolute; inset: 0; z-index: 4; pointer-events: none; opacity: 0; background: var(--cp-sheen); }
+    .flash.active { animation: flash .22s ease-out; }
+    @keyframes flash { 20% { opacity: .8; } 100% { opacity: 0; } }
+    .toast {
+      position: absolute;
+      z-index: 20;
+      left: 50%;
+      top: 105px;
+      padding: 8px 13px;
+      border: 1px solid var(--cp-border);
+      border-radius: 0.625rem;
+      background: var(--cp-panel-strong);
+      color: var(--cp-accent);
+      font-size: 11px;
+      font-weight: 900;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      opacity: 0;
+      transform: translate(-50%, -8px);
+      transition: opacity .2s, transform .2s;
+      pointer-events: none;
+    }
+    .toast.show { opacity: 1; transform: translate(-50%, 0); }
+    .shop-card { width: min(720px, 100%); max-height: calc(100vh - 32px); overflow-y: auto; }
+    .shop-heading { margin-bottom: 8px; font-size: clamp(34px, 7vw, 54px); }
+    .wallet {
+      display: inline-flex;
+      gap: 7px;
+      align-items: center;
+      margin: 6px 0 20px;
+      padding: 7px 11px;
+      border: 1px solid var(--cp-border);
+      border-radius: 0.625rem;
+      background: var(--cp-surface-soft);
+      color: var(--cp-text-muted);
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .wallet strong { color: var(--cp-warning); font-family: Consolas, "Courier New", Courier, monospace; font-size: 16px; }
+    .character-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+    .character-card {
+      padding: 16px 12px 12px;
+      border: 1px solid var(--cp-border);
+      border-radius: 16px;
+      background: var(--cp-surface-soft);
+      text-align: center;
+      transition: border-color .15s, transform .15s;
+    }
+    .character-card.selected { border-color: var(--cp-accent); box-shadow: inset 0 0 0 1px var(--cp-accent); }
+    .character-card:hover { transform: translateY(-2px); }
+    .character-preview {
+      position: relative;
+      width: 62px;
+      height: 86px;
+      margin: 0 auto 10px;
+    }
+    .character-preview .head {
+      position: absolute;
+      top: 6px;
+      left: 20px;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: var(--cp-accent-fg);
+      border: 4px solid var(--cp-text);
+    }
+    .character-preview .body {
+      position: absolute;
+      top: 32px;
+      left: 13px;
+      width: 38px;
+      height: 39px;
+      border-radius: 12px;
+      background: var(--character-color);
+    }
+    .character-preview::before, .character-preview::after {
+      content: "";
+      position: absolute;
+      bottom: 2px;
+      width: 9px;
+      height: 25px;
+      border-radius: 0.625rem;
+      background: var(--cp-text);
+    }
+    .character-preview::before { left: 17px; transform: rotate(8deg); }
+    .character-preview::after { right: 17px; transform: rotate(-8deg); }
+    .character-preview.runner { --character-color: var(--cp-accent); }
+    .character-preview.scout { --character-color: var(--cp-link); }
+    .character-preview.scout .head { border-radius: 35% 55% 45% 50%; }
+    .character-preview.shadow { --character-color: var(--cp-success); }
+    .character-preview.shadow .head { border-width: 6px 3px 3px; }
+    .character-name { display: block; font-size: 14px; font-weight: 900; }
+    .character-skill { display: block; min-height: 28px; margin: 5px 0 10px; color: var(--cp-text-muted); font-size: 10px; line-height: 1.35; }
+    .character-action {
+      width: 100%;
+      padding: 9px 5px;
+      border: 1px solid var(--cp-border);
+      border-radius: 0.625rem;
+      background: var(--cp-surface);
+      color: var(--cp-text);
+      font-size: 11px;
+      font-weight: 800;
+      cursor: pointer;
+    }
+    .character-action.buy { border-color: var(--cp-warning); color: var(--cp-text); }
+    .character-action.active { border-color: var(--cp-accent); background: var(--cp-accent); color: var(--cp-accent-fg); cursor: default; }
+    .character-action:disabled:not(.active) { color: var(--cp-text-muted); cursor: default; }
+    .outfit-section { margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--cp-border); }
+    .outfit-title { margin: 0; font-size: 18px; font-weight: 900; }
+    .outfit-subtitle { margin: 4px 0 16px; color: var(--cp-text-muted); font-size: 11px; }
+    .accessory-group { margin-top: 14px; text-align: left; }
+    .accessory-group-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 7px; }
+    .accessory-group-title { font-size: 11px; font-weight: 900; letter-spacing: .1em; text-transform: uppercase; }
+    .remove-accessory {
+      padding: 3px 7px;
+      border: 0;
+      background: transparent;
+      color: var(--cp-text-muted);
+      font-size: 10px;
+      cursor: pointer;
+    }
+    .remove-accessory:hover { color: var(--cp-accent); }
+    .accessory-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; }
+    .accessory-item {
+      display: grid;
+      grid-template-columns: 32px 1fr;
+      gap: 8px;
+      align-items: center;
+      padding: 9px;
+      border: 1px solid var(--cp-border);
+      border-radius: 0.625rem;
+      background: var(--cp-surface-soft);
+    }
+    .accessory-item.equipped { border-color: var(--cp-accent); background: var(--cp-highlight); }
+    .accessory-icon {
+      width: 32px;
+      height: 32px;
+      display: grid;
+      place-items: center;
+      border-radius: 0.625rem;
+      background: var(--cp-surface);
+      color: var(--cp-accent);
+      font-size: 17px;
+      font-weight: 900;
+    }
+    .accessory-info { min-width: 0; }
+    .accessory-name { display: block; overflow: hidden; font-size: 11px; font-weight: 800; text-overflow: ellipsis; white-space: nowrap; }
+    .accessory-price { display: block; margin-top: 2px; color: var(--cp-warning); font-family: Consolas, "Courier New", Courier, monospace; font-size: 9px; }
+    .accessory-action {
+      grid-column: 1 / -1;
+      width: 100%;
+      padding: 6px;
+      border: 1px solid var(--cp-border);
+      border-radius: 0.625rem;
+      background: var(--cp-surface);
+      color: var(--cp-text);
+      font-size: 9px;
+      font-weight: 800;
+      cursor: pointer;
+    }
+    .accessory-action.buy { border-color: var(--cp-warning); }
+    .accessory-action.active { border-color: var(--cp-accent); background: var(--cp-accent); color: var(--cp-accent-fg); cursor: default; }
+    .shop-close { margin-top: 12px; }
+
+    @media (max-width: 650px) {
+      .topbar { inset-inline: 12px; }
+      .brand-copy { display: none; }
+      .brand { padding: 6px; }
+      .stats { gap: 5px; }
+      .stat { min-width: 73px; padding: 8px 9px; }
+      .stat-value { font-size: 14px; }
+      .stat-label { font-size: 8px; }
+      .card { padding: 26px 20px; }
+      .pause { right: 12px; }
+      .controls { gap: 5px; }
+      .control { padding-inline: 3px; }
+      .shop-card { padding: 22px 14px; }
+      .character-grid { gap: 5px; }
+      .character-card { padding: 12px 6px 8px; }
+      .character-skill { font-size: 9px; }
+      .accessory-item { grid-template-columns: 1fr; padding: 7px; text-align: center; }
+      .accessory-icon { margin: auto; }
+      .results { grid-template-columns: repeat(2, 1fr); }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <canvas id="game" aria-label="Metro Rush endless runner game"></canvas>
+    <div class="flash" id="flash"></div>
+    <div class="toast" id="toast">Shield activated</div>
+
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark">M</div>
+        <div class="brand-copy">
+          <span class="brand-title">Metro Rush</span>
+          <span class="brand-subtitle">Night line</span>
+        </div>
+      </div>
+      <div class="stats">
+        <div class="stat"><span class="stat-label">Distance</span><span class="stat-value" id="scoreValue">00000</span></div>
+        <div class="stat"><span class="stat-label">Wallet</span><span class="stat-value" id="coinValue">0</span></div>
+        <div class="stat"><span class="stat-label">Best</span><span class="stat-value" id="bestValue">00000</span></div>
+      </div>
+    </header>
+
+    <div class="power-wrap" id="powerWrap">
+      <div class="power-label"><span id="powerName">Magnet</span><span id="powerTime">8.0s</span></div>
+      <div class="power-track"><div class="power-fill" id="powerFill"></div></div>
+    </div>
+
+    <button class="pause" id="pauseBtn" aria-label="Pause game">
+      <svg id="pauseIcon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 5h4v14H6zm8 0h4v14h-4z"/></svg>
+    </button>
+
+    <section class="overlay" id="startOverlay">
+      <div class="card">
+        <div class="eyebrow"><i class="pulse"></i> Line 7 departing</div>
+        <h1>Metro<br><span>Rush</span></h1>
+        <p class="intro">Dash through the midnight rail yard. Dodge trains, clear barriers, collect coins, and chase your longest run.</p>
+        <div class="controls">
+          <div class="control"><span class="keys">← →</span><span class="action">Switch lanes</span></div>
+          <div class="control"><span class="keys">↑</span><span class="action">Jump</span></div>
+          <div class="control"><span class="keys">↓</span><span class="action">Slide</span></div>
+        </div>
+        <button class="primary" id="startBtn">Start the run</button>
+        <button class="secondary shop-open">Choose runner</button>
+        <p class="hint">Keyboard, swipe, or tap the left/right sides</p>
+      </div>
+    </section>
+
+    <section class="overlay hidden" id="pauseOverlay">
+      <div class="card">
+        <div class="eyebrow">Run paused</div>
+        <h1>Catch your<br><span>breath</span></h1>
+        <p class="intro">The city will wait. Your run is saved right where you left it.</p>
+        <button class="primary" id="resumeBtn">Resume run</button>
+        <p class="hint">Press P or Escape to continue</p>
+      </div>
+    </section>
+
+    <section class="overlay hidden" id="gameOverOverlay">
+      <div class="card">
+        <div class="eyebrow">Run complete</div>
+        <h1>End of<br><span>the line</span></h1>
+        <div class="results">
+          <div class="result"><strong id="finalScore">0</strong><span>Distance</span></div>
+          <div class="result"><strong id="finalCoins">0</strong><span>Coins</span></div>
+          <div class="result"><strong id="finalWallet">0</strong><span>Total coins</span></div>
+          <div class="result"><strong id="finalBest">0</strong><span>Best</span></div>
+        </div>
+        <button class="primary" id="restartBtn">Run it back</button>
+        <button class="secondary shop-open">Choose runner</button>
+        <p class="hint">Press Enter or Space to restart</p>
+      </div>
+    </section>
+
+    <section class="overlay hidden" id="shopOverlay">
+      <div class="card shop-card">
+        <div class="eyebrow">Runner collection</div>
+        <h1 class="shop-heading">Choose your <span>style</span></h1>
+        <div class="wallet">Available coins <strong id="walletValue">0</strong></div>
+        <div class="character-grid">
+          <article class="character-card" data-card="runner">
+            <div class="character-preview runner"><i class="head"></i><i class="body"></i></div>
+            <span class="character-name">Riley</span>
+            <span class="character-skill">Original night-line runner</span>
+            <button class="character-action" data-character="runner">Select</button>
+          </article>
+          <article class="character-card" data-card="scout">
+            <div class="character-preview scout"><i class="head"></i><i class="body"></i></div>
+            <span class="character-name">Nova</span>
+            <span class="character-skill">Electric-blue street scout</span>
+            <button class="character-action buy" data-character="scout">Buy · 200</button>
+          </article>
+          <article class="character-card" data-card="shadow">
+            <div class="character-preview shadow"><i class="head"></i><i class="body"></i></div>
+            <span class="character-name">Jax</span>
+            <span class="character-skill">Green-hooded rail rebel</span>
+            <button class="character-action buy" data-character="shadow">Buy · 200</button>
+          </article>
+        </div>
+        <div class="outfit-section">
+          <h2 class="outfit-title">Premium outfit for <span id="outfitRunner">Riley</span></h2>
+          <p class="outfit-subtitle">Each runner keeps their own equipped hat, hair and jacket.</p>
+          <div id="accessoryShop"></div>
+        </div>
+        <button class="secondary shop-close" id="shopClose">Back</button>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    (() => {
+      const canvas = document.getElementById("game");
+      const ctx = canvas.getContext("2d");
+      const $ = (id) => document.getElementById(id);
+      const ui = {
+        score: $("scoreValue"), coins: $("coinValue"), best: $("bestValue"),
+        start: $("startOverlay"), pause: $("pauseOverlay"), over: $("gameOverOverlay"),
+        shop: $("shopOverlay"), wallet: $("walletValue"), accessoryShop: $("accessoryShop"),
+        outfitRunner: $("outfitRunner"),
+        power: $("powerWrap"), powerName: $("powerName"), powerTime: $("powerTime"),
+        powerFill: $("powerFill"), flash: $("flash"), toast: $("toast"),
+        finalScore: $("finalScore"), finalCoins: $("finalCoins"), finalWallet: $("finalWallet"), finalBest: $("finalBest"),
+        pauseIcon: $("pauseIcon")
+      };
+
+      let W = 0, H = 0, dpr = 1, last = 0, state = "menu";
+      let score = 0, coins = 0, speed = 0.34, roadOffset = 0, spawnTimer = 0;
+      let best = Number(localStorage.getItem("metro-rush-best") || 0);
+      const savedWallet = Number(localStorage.getItem("metro-rush-wallet") || 0);
+      let wallet = Number.isFinite(savedWallet) ? Math.max(0, savedWallet) : 0;
+      const characterDefs = {
+        runner: { name: "Riley", color: "accent", cost: 0 },
+        scout: { name: "Nova", color: "link", cost: 200 },
+        shadow: { name: "Jax", color: "success", cost: 200 }
+      };
+      const accessoryDefs = {
+        hat: [
+          { id: "metro-cap", name: "Metro Cap", price: 1500, icon: "⌁", color: "accent", style: "cap" },
+          { id: "night-beanie", name: "Night Beanie", price: 2200, icon: "●", color: "link", style: "beanie" },
+          { id: "rail-crown", name: "Rail Crown", price: 4000, icon: "♛", color: "warning", style: "crown" }
+        ],
+        hair: [
+          { id: "street-spikes", name: "Street Spikes", price: 1800, icon: "✦", color: "text", style: "spikes" },
+          { id: "speed-tail", name: "Speed Tail", price: 2600, icon: "〰", color: "accent", style: "ponytail" },
+          { id: "volt-hawk", name: "Volt Hawk", price: 3500, icon: "▲", color: "link", style: "mohawk" }
+        ],
+        jacket: [
+          { id: "yard-bomber", name: "Yard Bomber", price: 2000, icon: "Y", color: "border-strong", style: "bomber" },
+          { id: "signal-jacket", name: "Signal Jacket", price: 3200, icon: "Ⅱ", color: "warning", style: "signal" },
+          { id: "royal-coat", name: "Royal Coat", price: 5000, icon: "V", color: "accent", style: "royal" }
+        ]
+      };
+      const accessoriesById = Object.fromEntries(Object.entries(accessoryDefs).flatMap(([category, items]) => items.map(item => [item.id, { ...item, category }])));
+      let unlockedCharacters;
+      try {
+        unlockedCharacters = JSON.parse(localStorage.getItem("metro-rush-characters") || '["runner"]');
+      } catch {
+        unlockedCharacters = ["runner"];
+      }
+      if (!Array.isArray(unlockedCharacters)) unlockedCharacters = ["runner"];
+      unlockedCharacters = [...new Set(["runner", ...unlockedCharacters.filter(id => characterDefs[id])])];
+      let selectedCharacter = localStorage.getItem("metro-rush-selected") || "runner";
+      if (!unlockedCharacters.includes(selectedCharacter)) selectedCharacter = "runner";
+      let ownedAccessories;
+      let characterLoadouts;
+      try {
+        ownedAccessories = JSON.parse(localStorage.getItem("metro-rush-accessories") || "[]");
+        characterLoadouts = JSON.parse(localStorage.getItem("metro-rush-loadouts") || "{}");
+      } catch {
+        ownedAccessories = [];
+        characterLoadouts = {};
+      }
+      if (!Array.isArray(ownedAccessories)) ownedAccessories = [];
+      ownedAccessories = [...new Set(ownedAccessories.filter(id => accessoriesById[id]))];
+      if (!characterLoadouts || typeof characterLoadouts !== "object" || Array.isArray(characterLoadouts)) characterLoadouts = {};
+      Object.keys(characterDefs).forEach(characterId => {
+        const saved = characterLoadouts[characterId];
+        characterLoadouts[characterId] = {
+          hat: saved && ownedAccessories.includes(saved.hat) && accessoriesById[saved.hat].category === "hat" ? saved.hat : null,
+          hair: saved && ownedAccessories.includes(saved.hair) && accessoriesById[saved.hair].category === "hair" ? saved.hair : null,
+          jacket: saved && ownedAccessories.includes(saved.jacket) && accessoriesById[saved.jacket].category === "jacket" ? saved.jacket : null
+        };
+      });
+      let shopReturn = "menu";
+      let objects = [], particles = [], buildings = [];
+      let power = null, powerTime = 0, shake = 0;
+      let pointerStart = null, toastTimer = null;
+      let objectId = 0;
+      const playerTrackZ = .5;
+      const minimumTrainGap = .7;
+      const powerDurations = { shield: 10, magnet: 8, jetpack: 6 };
+      const player = { lane: 0, visualLane: 0, y: 0, vy: 0, slide: 0, tilt: 0, grounded: true, rideTrainId: null };
+      const colors = {};
+
+      function readColors() {
+        const s = getComputedStyle(document.documentElement);
+        ["bg", "bg-elevated", "surface", "surface-soft", "border", "border-strong", "text",
+          "text-muted", "text-soft", "accent", "accent-hover", "accent-soft", "accent-fg",
+          "success", "danger", "warning", "link", "panel", "panel-strong", "sheen", "highlight"
+        ].forEach(k => colors[k] = s.getPropertyValue(`--cp-${k}`).trim());
+      }
+
+      function resize() {
+        dpr = Math.min(devicePixelRatio || 1, 2);
+        W = innerWidth; H = innerHeight;
+        canvas.width = W * dpr; canvas.height = H * dpr;
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        buildCity();
+      }
+
+      function buildCity() {
+        buildings = [];
+        let x = -40;
+        while (x < W + 100) {
+          const w = 34 + Math.random() * 70;
+          buildings.push({ x, w, h: H * (.12 + Math.random() * .32), lights: 2 + Math.floor(Math.random() * 4) });
+          x += w + 8 + Math.random() * 18;
+        }
+      }
+
+      const horizon = () => H * .29;
+      const ground = () => H * .88;
+      const perspective = z => 1 / (z * .85 + 1);
+      function project(lane, z, lift = 0) {
+        const p = perspective(z);
+        const cx = W / 2;
+        const spread = Math.min(W * .36, 390);
+        return {
+          x: cx + lane * spread * p,
+          y: horizon() + (ground() - horizon()) * p - lift * p,
+          scale: p
+        };
+      }
+
+      function roundedRect(x, y, w, h, r) {
+        ctx.beginPath();
+        ctx.roundRect(x, y, w, h, r);
+      }
+
+      function reset() {
+        score = 0; coins = 0; speed = .34; roadOffset = 0; spawnTimer = .55;
+        objects = []; particles = []; power = null; powerTime = 0; shake = 0;
+        Object.assign(player, { lane: 0, visualLane: 0, y: 0, vy: 0, slide: 0, tilt: 0, grounded: true, rideTrainId: null });
+        updateUI();
+      }
+
+      function startGame() {
+        reset();
+        state = "playing";
+        ui.start.classList.add("hidden");
+        ui.over.classList.add("hidden");
+        ui.pause.classList.add("hidden");
+        ui.shop.classList.add("hidden");
+        last = performance.now();
+      }
+
+      function togglePause(forceResume = false) {
+        if (state !== "playing" && state !== "paused") return;
+        if (state === "playing" && !forceResume) {
+          state = "paused";
+          ui.pause.classList.remove("hidden");
+          ui.pauseIcon.innerHTML = '<path d="M8 5v14l11-7z"/>';
+        } else {
+          state = "playing";
+          ui.pause.classList.add("hidden");
+          ui.pauseIcon.innerHTML = '<path d="M6 5h4v14H6zm8 0h4v14h-4z"/>';
+          last = performance.now();
+        }
+      }
+
+      function gameOver() {
+        state = "over";
+        const rounded = Math.floor(score);
+        if (rounded > best) {
+          best = rounded;
+          localStorage.setItem("metro-rush-best", best);
+        }
+        ui.finalScore.textContent = rounded.toLocaleString();
+        ui.finalCoins.textContent = coins;
+        ui.finalWallet.textContent = wallet.toLocaleString();
+        ui.finalBest.textContent = best.toLocaleString();
+        ui.over.classList.remove("hidden");
+        updateUI();
+      }
+
+      function saveCollection() {
+        localStorage.setItem("metro-rush-wallet", wallet);
+        localStorage.setItem("metro-rush-characters", JSON.stringify(unlockedCharacters));
+        localStorage.setItem("metro-rush-selected", selectedCharacter);
+        localStorage.setItem("metro-rush-accessories", JSON.stringify(ownedAccessories));
+        localStorage.setItem("metro-rush-loadouts", JSON.stringify(characterLoadouts));
+      }
+
+      function renderShop() {
+        ui.wallet.textContent = wallet;
+        document.querySelectorAll("[data-character]").forEach(button => {
+          const id = button.dataset.character;
+          const unlocked = unlockedCharacters.includes(id);
+          const selected = selectedCharacter === id;
+          button.className = `character-action${selected ? " active" : !unlocked ? " buy" : ""}`;
+          button.textContent = selected ? "Selected" : unlocked ? "Select" : `Buy · ${characterDefs[id].cost}`;
+          button.disabled = selected;
+          document.querySelector(`[data-card="${id}"]`).classList.toggle("selected", selected);
+        });
+        renderAccessories();
+      }
+
+      function renderAccessories() {
+        ui.outfitRunner.textContent = characterDefs[selectedCharacter].name;
+        const loadout = characterLoadouts[selectedCharacter];
+        const labels = { hat: "Hats", hair: "Hair", jacket: "Jackets" };
+        ui.accessoryShop.innerHTML = Object.entries(accessoryDefs).map(([category, items]) => `
+          <section class="accessory-group">
+            <div class="accessory-group-head">
+              <span class="accessory-group-title">${labels[category]}</span>
+              <button class="remove-accessory" data-remove="${category}">Remove</button>
+            </div>
+            <div class="accessory-grid">
+              ${items.map(item => {
+                const owned = ownedAccessories.includes(item.id);
+                const equipped = loadout[category] === item.id;
+                return `
+                  <article class="accessory-item${equipped ? " equipped" : ""}">
+                    <span class="accessory-icon">${item.icon}</span>
+                    <span class="accessory-info">
+                      <span class="accessory-name">${item.name}</span>
+                      <span class="accessory-price">${owned ? "Owned" : `${item.price.toLocaleString()} coins`}</span>
+                    </span>
+                    <button class="accessory-action${equipped ? " active" : !owned ? " buy" : ""}" data-accessory="${item.id}" ${equipped ? "disabled" : ""}>
+                      ${equipped ? "Equipped" : owned ? "Equip" : "Buy"}
+                    </button>
+                  </article>`;
+              }).join("")}
+            </div>
+          </section>`).join("");
+      }
+
+      function chooseAccessory(id) {
+        const item = accessoriesById[id];
+        if (!item) return;
+        if (!ownedAccessories.includes(id)) {
+          if (wallet < item.price) {
+            showToast(`${(item.price - wallet).toLocaleString()} more coins needed`);
+            return;
+          }
+          wallet -= item.price;
+          ownedAccessories.push(id);
+          showToast(`${item.name} unlocked`);
+        }
+        characterLoadouts[selectedCharacter][item.category] = id;
+        saveCollection();
+        updateUI();
+        renderShop();
+      }
+
+      function removeAccessory(category) {
+        if (!accessoryDefs[category]) return;
+        characterLoadouts[selectedCharacter][category] = null;
+        saveCollection();
+        renderShop();
+      }
+
+      function openShop() {
+        shopReturn = state === "over" ? "over" : "menu";
+        ui.start.classList.add("hidden");
+        ui.over.classList.add("hidden");
+        renderShop();
+        ui.shop.classList.remove("hidden");
+      }
+
+      function closeShop() {
+        ui.shop.classList.add("hidden");
+        (shopReturn === "over" ? ui.over : ui.start).classList.remove("hidden");
+      }
+
+      function chooseCharacter(id) {
+        const definition = characterDefs[id];
+        if (!definition) return;
+        if (!unlockedCharacters.includes(id)) {
+          if (wallet < definition.cost) {
+            showToast(`${definition.cost - wallet} more coins needed`);
+            return;
+          }
+          wallet -= definition.cost;
+          unlockedCharacters.push(id);
+          showToast("Runner unlocked");
+        }
+        selectedCharacter = id;
+        saveCollection();
+        updateUI();
+        renderShop();
+      }
+
+      function move(dir) {
+        if (state !== "playing") return;
+        const targetLane = Math.max(-1, Math.min(1, player.lane + dir));
+        if (targetLane === player.lane) return;
+        const targetTrain = objects.find(o =>
+          o.type === "train" && o.lane === targetLane &&
+          o.z <= playerTrackZ && o.z + o.length >= playerTrackZ
+        );
+        const canJumpToRoof = !player.grounded && player.y >= trainRoofHeight() - 35;
+        if (targetTrain && power !== "jetpack" && !canJumpToRoof) {
+          player.tilt = dir * .08;
+          showToast("Lane blocked by train");
+          return;
+        }
+        player.lane = targetLane;
+        player.tilt = -dir * .24;
+      }
+      function jump() {
+        if (state === "playing" && player.grounded && player.slide <= 0) {
+          player.vy = 720;
+          player.grounded = false;
+        }
+      }
+      function slide() {
+        if (state === "playing" && player.y < 8) player.slide = .72;
+      }
+
+      function spawnRow() {
+        const difficulty = Math.min(1, score / 4200);
+        const roll = Math.random();
+        let hasTrain = false;
+        if (roll < .18) {
+          const lane = Math.floor(Math.random() * 3) - 1;
+          for (let i = 0; i < 6; i++) objects.push({ type: "coin", lane, z: 8 + i * .64, checked: false });
+        } else if (roll < .29) {
+          const powerTypes = ["magnet", "shield", "jetpack"];
+          objects.push({ type: powerTypes[Math.floor(Math.random() * powerTypes.length)], lane: Math.floor(Math.random() * 3) - 1, z: 10, checked: false });
+        } else {
+          const openLane = Math.floor(Math.random() * 3) - 1;
+          const count = Math.random() < .28 + difficulty * .35 ? 2 : 1;
+          const options = [-1, 0, 1].filter(l => l !== openLane).sort(() => Math.random() - .5);
+          for (let i = 0; i < count; i++) {
+            const r = Math.random();
+            const type = r < .42 ? "barrier" : r < .78 ? "train" : "sign";
+            const object = { id: ++objectId, type, lane: options[i], z: 10 + i * .12, checked: false };
+            if (type === "train") {
+              object.length = 2.8 + Math.random() * .8;
+              object.hasRamp = Math.random() < .38;
+              object.rampLength = 1.3;
+              const existingEnd = objects
+                .filter(other => other.type === "train" && other.lane === object.lane)
+                .reduce((furthest, other) => Math.max(furthest, other.z + other.length), -Infinity);
+              if (Number.isFinite(existingEnd)) {
+                const rampClearance = object.hasRamp ? object.rampLength : 0;
+                object.z = Math.max(object.z, existingEnd + minimumTrainGap + rampClearance);
+              }
+              hasTrain = true;
+            }
+            objects.push(object);
+          }
+          if (Math.random() < .55) {
+            for (let i = 0; i < 4; i++) objects.push({ type: "coin", lane: openLane, z: 8.6 + i * .58, checked: false });
+          }
+        }
+        return hasTrain;
+      }
+
+      function trainRoofHeight() {
+        const p = perspective(playerTrackZ);
+        return (ground() - horizon()) * (1 - p) + 175 * p;
+      }
+
+      function jetpackHeight() {
+        return trainRoofHeight() + 115;
+      }
+
+      function getTrainSupport() {
+        if (player.rideTrainId !== null) {
+          const train = objects.find(o => o.id === player.rideTrainId && o.type === "train");
+          if (!train || train.lane !== player.lane || train.z + train.length < playerTrackZ) {
+            player.rideTrainId = null;
+          } else {
+            const roof = trainRoofHeight();
+            if (train.z <= playerTrackZ) return roof;
+            const rampStart = train.z - train.rampLength;
+            if (rampStart <= playerTrackZ) {
+              return roof * ((playerTrackZ - rampStart) / train.rampLength);
+            }
+          }
+        }
+        const rampTrain = objects.find(o =>
+          o.type === "train" && o.hasRamp && o.lane === player.lane &&
+          o.z - o.rampLength <= playerTrackZ && o.z >= playerTrackZ
+        );
+        if (rampTrain) {
+          const height = trainRoofHeight() * ((playerTrackZ - (rampTrain.z - rampTrain.rampLength)) / rampTrain.rampLength);
+          if (player.y <= height + 28 && player.vy <= 0) {
+            player.rideTrainId = rampTrain.id;
+            return height;
+          }
+        }
+        const roof = trainRoofHeight();
+        const landingTrain = objects.find(o =>
+          o.type === "train" && o.lane === player.lane &&
+          o.z <= playerTrackZ && o.z + o.length >= playerTrackZ
+        );
+        if (landingTrain && player.vy <= 0 && player.y >= roof - 35 && player.y <= roof + 90) {
+          player.rideTrainId = landingTrain.id;
+          return roof;
+        }
+        return null;
+      }
+
+      function activatePower(type) {
+        power = type;
+        powerTime = powerDurations[type];
+        ui.powerName.textContent = type === "shield" ? "Impact shield" : type === "jetpack" ? "Jetpack flight" : "Coin magnet";
+        showToast(type === "shield" ? "Shield activated" : type === "jetpack" ? "Jetpack activated" : "Magnet activated");
+      }
+
+      function showToast(text) {
+        ui.toast.textContent = text;
+        ui.toast.classList.add("show");
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => ui.toast.classList.remove("show"), 1100);
+      }
+
+      function burst(x, y, color, count = 10) {
+        for (let i = 0; i < count; i++) particles.push({
+          x, y, vx: (Math.random() - .5) * 180, vy: -40 - Math.random() * 180,
+          life: .35 + Math.random() * .35, max: .7, color, size: 2 + Math.random() * 5
+        });
+      }
+
+      function collect(obj) {
+        obj.dead = true;
+        const p = project(obj.lane, obj.z);
+        if (obj.type === "coin") {
+          coins++;
+          wallet++;
+          localStorage.setItem("metro-rush-wallet", wallet);
+          score += 35;
+          burst(p.x, p.y, colors.warning, 7);
+          if (coins % 10 === 0) showToast(`${coins} coins collected`);
+        } else {
+          activatePower(obj.type);
+          burst(p.x, p.y, colors.accent, 18);
+          ui.flash.classList.remove("active");
+          void ui.flash.offsetWidth;
+          ui.flash.classList.add("active");
+        }
+      }
+
+      function collision(obj) {
+        if (obj.checked || obj.z > .68 || obj.z < .2) return;
+        obj.checked = true;
+        const sameLane = Math.abs(obj.lane - player.visualLane) < .42;
+        if (!sameLane) return;
+        if (obj.type === "coin" || obj.type === "magnet" || obj.type === "shield" || obj.type === "jetpack") {
+          collect(obj);
+          return;
+        }
+        const safe = power === "jetpack" || player.rideTrainId !== null ||
+          (obj.type === "train" && player.y >= trainRoofHeight() - 35) ||
+          (obj.type === "barrier" && player.y > 72) ||
+          (obj.type === "sign" && player.slide > .08);
+        if (safe) {
+          score += 20;
+          return;
+        }
+        if (power === "shield") {
+          power = null; powerTime = 0; obj.dead = true; shake = .35;
+          const p = project(obj.lane, obj.z);
+          burst(p.x, p.y, colors.accent, 28);
+          showToast("Shield absorbed impact");
+        } else {
+          shake = .7;
+          gameOver();
+        }
+      }
+
+      function update(dt) {
+        if (state !== "playing") return;
+        speed = Math.min(.64, .34 + score / 25000);
+        score += dt * speed * 112;
+        roadOffset = (roadOffset + dt * speed * 3.2) % 1;
+        player.visualLane += (player.lane - player.visualLane) * Math.min(1, dt * 14);
+        player.tilt += (0 - player.tilt) * Math.min(1, dt * 8);
+        const supportHeight = getTrainSupport();
+        if (power === "jetpack") {
+          player.rideTrainId = null;
+          player.y += (jetpackHeight() - player.y) * Math.min(1, dt * 5);
+          player.vy = 0;
+          player.slide = 0;
+          player.grounded = false;
+        } else if (supportHeight !== null && player.vy <= 0 && player.y <= supportHeight + 28) {
+          player.y = supportHeight;
+          player.vy = 0;
+          player.grounded = true;
+        } else if (player.vy || player.y) {
+          player.grounded = false;
+          player.y += player.vy * dt;
+          player.vy -= 1750 * dt;
+          if (player.y <= 0) { player.y = 0; player.vy = 0; player.grounded = true; player.rideTrainId = null; }
+        }
+        player.slide = Math.max(0, player.slide - dt);
+        spawnTimer -= dt;
+        if (spawnTimer <= 0) {
+          const spawnedTrain = spawnRow();
+          spawnTimer = Math.max(.48, 1.02 - score / 9000) / (speed / .34);
+          if (spawnedTrain) spawnTimer *= 1.75;
+        }
+        objects.forEach(o => {
+          o.z -= dt * speed * 5.2;
+          if (power === "magnet" && o.type === "coin" && o.z < 2.5 && o.z > .25) {
+            o.lane += (player.visualLane - o.lane) * Math.min(1, dt * 8);
+          }
+          collision(o);
+        });
+        objects = objects.filter(o => !o.dead && (o.type === "train" ? o.z + o.length > -.25 : o.z > -.25));
+        particles.forEach(p => {
+          p.life -= dt; p.x += p.vx * dt; p.y += p.vy * dt; p.vy += 420 * dt;
+        });
+        particles = particles.filter(p => p.life > 0);
+        if (power) {
+          powerTime -= dt;
+          if (powerTime <= 0) { power = null; powerTime = 0; }
+        }
+        shake = Math.max(0, shake - dt);
+        updateUI();
+      }
+
+      function updateUI() {
+        ui.score.textContent = String(Math.floor(score)).padStart(5, "0");
+        ui.coins.textContent = wallet;
+        ui.best.textContent = String(best).padStart(5, "0");
+        ui.power.classList.toggle("visible", !!power);
+        ui.powerTime.textContent = `${powerTime.toFixed(1)}s`;
+        ui.powerFill.style.transform = `scaleX(${Math.max(0, powerTime / (powerDurations[power] || 1))})`;
+      }
+
+      function drawBackground() {
+        ctx.fillStyle = colors["bg-elevated"];
+        ctx.fillRect(0, 0, W, H);
+        const h = horizon();
+        ctx.fillStyle = colors["surface-soft"];
+        ctx.fillRect(0, h * .65, W, H);
+
+        ctx.save();
+        ctx.globalAlpha = .78;
+        buildings.forEach((b, i) => {
+          ctx.fillStyle = i % 3 === 0 ? colors.border : colors["border-strong"];
+          ctx.fillRect(b.x, h - b.h * .54, b.w, b.h * .55);
+          ctx.fillStyle = colors.sheen;
+          const rows = Math.max(2, Math.floor(b.h / 45));
+          for (let r = 0; r < rows; r++) {
+            for (let c = 0; c < b.lights; c++) {
+              if ((r + c + i) % 3 !== 0) ctx.fillRect(b.x + 8 + c * ((b.w - 12) / b.lights), h - b.h * .5 + 10 + r * 22, 5, 7);
+            }
+          }
+        });
+        ctx.restore();
+
+        ctx.fillStyle = colors.text;
+        ctx.globalAlpha = .12;
+        ctx.fillRect(0, h - 3, W, 6);
+        ctx.globalAlpha = 1;
+
+        const cx = W / 2;
+        const farW = Math.min(W * .055, 45);
+        const nearW = Math.min(W * .49, 540);
+        ctx.fillStyle = colors["surface-soft"];
+        ctx.beginPath();
+        ctx.moveTo(cx - farW, h);
+        ctx.lineTo(cx + farW, h);
+        ctx.lineTo(cx + nearW, H);
+        ctx.lineTo(cx - nearW, H);
+        ctx.closePath();
+        ctx.fill();
+
+        const railOffsets = [-1.26, -.74, -.26, .26, .74, 1.26];
+
+        ctx.strokeStyle = colors.border;
+        ctx.lineWidth = 1;
+        [-1.5, -.5, .5, 1.5].forEach(edge => {
+          const far = project(edge, 40);
+          const near = project(edge, 0);
+          ctx.beginPath();
+          ctx.moveTo(far.x, far.y);
+          ctx.lineTo(near.x, near.y);
+          ctx.stroke();
+        });
+
+        for (let i = 0; i < 22; i++) {
+          const z = ((i / 22 + roadOffset) % 1) * 11 + .08;
+          const p = perspective(z);
+          ctx.globalAlpha = .22 + p * .5;
+          ctx.strokeStyle = colors.text;
+          ctx.lineWidth = Math.max(1, p * 7);
+          [-1, 0, 1].forEach(lane => {
+            const left = project(lane - .34, z);
+            const right = project(lane + .34, z);
+            ctx.beginPath();
+            ctx.moveTo(left.x, left.y);
+            ctx.lineTo(right.x, right.y);
+            ctx.stroke();
+          });
+        }
+        ctx.globalAlpha = 1;
+
+        ctx.fillStyle = colors["border-strong"];
+        railOffsets.forEach(rail => {
+          const far = project(rail, 40);
+          const near = project(rail, 0);
+          const farHalf = .65;
+          const nearHalf = 3;
+          ctx.beginPath();
+          ctx.moveTo(far.x - farHalf, far.y);
+          ctx.lineTo(far.x + farHalf, far.y);
+          ctx.lineTo(near.x + nearHalf, near.y);
+          ctx.lineTo(near.x - nearHalf, near.y);
+          ctx.closePath();
+          ctx.fill();
+        });
+      }
+
+      function drawTrain(o, p) {
+        const foregroundY = H + 320;
+        const foregroundScale = (foregroundY - horizon()) / (ground() - horizon());
+        const near = o.z <= .04
+          ? {
+              x: W / 2 + o.lane * Math.min(W * .36, 390) * foregroundScale,
+              y: foregroundY,
+              scale: foregroundScale
+            }
+          : project(o.lane, o.z);
+        const far = project(o.lane, Math.max(.05, o.z + o.length));
+        const nearW = 90 * near.scale, farW = 90 * far.scale;
+        const nearH = 175 * near.scale, farH = 175 * far.scale;
+
+        ctx.fillStyle = colors["border-strong"];
+        ctx.beginPath();
+        ctx.moveTo(near.x - nearW / 2, near.y);
+        ctx.lineTo(far.x - farW / 2, far.y);
+        ctx.lineTo(far.x - farW / 2, far.y - farH);
+        ctx.lineTo(near.x - nearW / 2, near.y - nearH);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.fillStyle = colors.border;
+        ctx.beginPath();
+        ctx.moveTo(near.x + nearW / 2, near.y);
+        ctx.lineTo(far.x + farW / 2, far.y);
+        ctx.lineTo(far.x + farW / 2, far.y - farH);
+        ctx.lineTo(near.x + nearW / 2, near.y - nearH);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.fillStyle = colors.border;
+        ctx.beginPath();
+        ctx.moveTo(near.x - nearW / 2, near.y - nearH);
+        ctx.lineTo(near.x + nearW / 2, near.y - nearH);
+        ctx.lineTo(far.x + farW / 2, far.y - farH);
+        ctx.lineTo(far.x - farW / 2, far.y - farH);
+        ctx.closePath();
+        ctx.fill();
+        ctx.strokeStyle = colors["border-strong"];
+        ctx.lineWidth = Math.max(1, 2 * near.scale);
+        ctx.stroke();
+        ctx.strokeStyle = colors.accent;
+        ctx.lineWidth = Math.max(1, 5 * near.scale);
+        ctx.beginPath();
+        ctx.moveTo(near.x - nearW * .45, near.y - nearH);
+        ctx.lineTo(far.x - farW * .45, far.y - farH);
+        ctx.moveTo(near.x + nearW * .45, near.y - nearH);
+        ctx.lineTo(far.x + farW * .45, far.y - farH);
+        ctx.stroke();
+
+        if (o.z > .02) {
+          ctx.fillStyle = colors.text;
+          roundedRect(near.x - nearW / 2, near.y - nearH, nearW, nearH, 9 * near.scale);
+          ctx.fill();
+          ctx.fillStyle = colors.accent;
+          ctx.fillRect(near.x - nearW / 2, near.y - nearH * .48, nearW, nearH * .13);
+          ctx.fillStyle = colors["bg-elevated"];
+          roundedRect(near.x - nearW * .35, near.y - nearH * .86, nearW * .7, nearH * .25, 5 * near.scale);
+          ctx.fill();
+          ctx.fillStyle = colors.warning;
+          ctx.beginPath(); ctx.arc(near.x - nearW * .28, near.y - nearH * .12, 5 * near.scale, 0, Math.PI * 2); ctx.fill();
+          ctx.beginPath(); ctx.arc(near.x + nearW * .28, near.y - nearH * .12, 5 * near.scale, 0, Math.PI * 2); ctx.fill();
+        }
+
+        if (o.hasRamp && o.z > .04) {
+          const rampNear = project(o.lane, Math.max(.04, o.z - o.rampLength));
+          const rampNearW = 82 * rampNear.scale;
+          const rampTopW = nearW * .86;
+          ctx.fillStyle = colors["border-strong"];
+          ctx.beginPath();
+          ctx.moveTo(rampNear.x - rampNearW / 2, rampNear.y);
+          ctx.lineTo(rampNear.x + rampNearW / 2, rampNear.y);
+          ctx.lineTo(near.x + rampTopW / 2, near.y - nearH);
+          ctx.lineTo(near.x - rampTopW / 2, near.y - nearH);
+          ctx.closePath();
+          ctx.fill();
+          ctx.strokeStyle = colors.text;
+          ctx.lineWidth = Math.max(1, 2 * near.scale);
+          ctx.stroke();
+          ctx.strokeStyle = colors.warning;
+          ctx.lineWidth = Math.max(1, 4 * near.scale);
+          for (let i = 1; i < 5; i++) {
+            const t = i / 5;
+            const lx = rampNear.x + (near.x - rampNear.x) * t;
+            const ly = rampNear.y + (near.y - nearH - rampNear.y) * t;
+            const half = (rampNearW * (1 - t) + rampTopW * t) / 2;
+            ctx.beginPath(); ctx.moveTo(lx - half, ly); ctx.lineTo(lx + half, ly); ctx.stroke();
+          }
+        }
+      }
+
+      function drawBarrier(o, p) {
+        const w = 98 * p.scale, h = 58 * p.scale;
+        ctx.fillStyle = colors.accent;
+        roundedRect(p.x - w / 2, p.y - h, w, h, 5 * p.scale);
+        ctx.fill();
+        ctx.save();
+        ctx.beginPath(); ctx.rect(p.x - w / 2, p.y - h, w, h); ctx.clip();
+        ctx.strokeStyle = colors["accent-fg"]; ctx.globalAlpha = .7; ctx.lineWidth = 10 * p.scale;
+        for (let x = p.x - w; x < p.x + w; x += 26 * p.scale) {
+          ctx.beginPath(); ctx.moveTo(x, p.y); ctx.lineTo(x + 40 * p.scale, p.y - h); ctx.stroke();
+        }
+        ctx.restore();
+        ctx.fillStyle = colors.text;
+        ctx.fillRect(p.x - w * .38, p.y, 8 * p.scale, 26 * p.scale);
+        ctx.fillRect(p.x + w * .3, p.y, 8 * p.scale, 26 * p.scale);
+      }
+
+      function drawSign(o, p) {
+        const w = 100 * p.scale, h = 125 * p.scale;
+        ctx.fillStyle = colors.text;
+        ctx.fillRect(p.x - w * .46, p.y - h, 7 * p.scale, h);
+        ctx.fillRect(p.x + w * .38, p.y - h, 7 * p.scale, h);
+        ctx.fillStyle = colors.accent;
+        roundedRect(p.x - w / 2, p.y - h, w, 34 * p.scale, 4 * p.scale);
+        ctx.fill();
+        ctx.fillStyle = colors["accent-fg"];
+        ctx.font = `900 ${Math.max(6, 11 * p.scale)}px "Segoe UI"`;
+        ctx.textAlign = "center";
+        ctx.fillText("DUCK", p.x, p.y - h + 22 * p.scale);
+      }
+
+      function drawCoin(o, p) {
+        const r = 14 * p.scale;
+        ctx.fillStyle = colors.warning;
+        ctx.beginPath(); ctx.ellipse(p.x, p.y - r * 1.4, Math.max(2, r * Math.abs(Math.cos(performance.now() / 180 + o.z))), r, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = colors["accent-fg"]; ctx.globalAlpha = .55; ctx.lineWidth = 2 * p.scale; ctx.stroke(); ctx.globalAlpha = 1;
+      }
+
+      function drawPower(o, p) {
+        const r = 20 * p.scale;
+        ctx.fillStyle = colors.accent;
+        ctx.beginPath(); ctx.arc(p.x, p.y - r * 1.2, r, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = colors["accent-fg"]; ctx.lineWidth = 2 * p.scale; ctx.stroke();
+        ctx.fillStyle = colors["accent-fg"];
+        ctx.font = `900 ${Math.max(7, 16 * p.scale)}px "Segoe UI"`;
+        ctx.textAlign = "center";
+        ctx.fillText(o.type === "shield" ? "◆" : o.type === "jetpack" ? "↑" : "U", p.x, p.y - r * .85);
+      }
+
+      function drawObject(o) {
+        const coinLift = power === "jetpack" && o.type === "coin" ? jetpackHeight() : 0;
+        const p = project(o.lane, o.z, coinLift);
+        if (o.type === "train") drawTrain(o, p);
+        else if (o.type === "barrier") drawBarrier(o, p);
+        else if (o.type === "sign") drawSign(o, p);
+        else if (o.type === "coin") drawCoin(o, p);
+        else drawPower(o, p);
+      }
+
+      function drawHair(item, s) {
+        if (!item) return;
+        ctx.fillStyle = colors[item.color];
+        if (item.style === "spikes") {
+          for (let x = -16; x <= 16; x += 8) {
+            ctx.beginPath();
+            ctx.moveTo((x - 5) * s, -119 * s);
+            ctx.lineTo(x * s, (-139 - Math.abs(x) * .2) * s);
+            ctx.lineTo((x + 6) * s, -118 * s);
+            ctx.fill();
+          }
+        } else if (item.style === "ponytail") {
+          ctx.beginPath(); ctx.arc(18 * s, -108 * s, 11 * s, 0, Math.PI * 2); ctx.fill();
+          ctx.beginPath(); ctx.arc(28 * s, -97 * s, 8 * s, 0, Math.PI * 2); ctx.fill();
+          ctx.beginPath(); ctx.arc(0, -115 * s, 19 * s, Math.PI, Math.PI * 2); ctx.fill();
+        } else {
+          ctx.beginPath();
+          ctx.moveTo(-8 * s, -122 * s); ctx.lineTo(0, -148 * s); ctx.lineTo(8 * s, -122 * s);
+          ctx.closePath(); ctx.fill();
+          ctx.fillRect(-9 * s, -123 * s, 18 * s, 7 * s);
+        }
+      }
+
+      function drawHat(item, s) {
+        if (!item) return;
+        ctx.fillStyle = colors[item.color];
+        if (item.style === "cap") {
+          roundedRect(-19 * s, -129 * s, 37 * s, 15 * s, 7 * s); ctx.fill();
+          ctx.fillRect(8 * s, -118 * s, 19 * s, 5 * s);
+        } else if (item.style === "beanie") {
+          ctx.beginPath(); ctx.arc(0, -121 * s, 20 * s, Math.PI, Math.PI * 2); ctx.fill();
+          ctx.fillRect(-20 * s, -122 * s, 40 * s, 8 * s);
+          ctx.beginPath(); ctx.arc(0, -143 * s, 5 * s, 0, Math.PI * 2); ctx.fill();
+        } else {
+          ctx.beginPath();
+          ctx.moveTo(-20 * s, -119 * s); ctx.lineTo(-17 * s, -143 * s); ctx.lineTo(-7 * s, -132 * s);
+          ctx.lineTo(0, -151 * s); ctx.lineTo(8 * s, -132 * s); ctx.lineTo(18 * s, -144 * s);
+          ctx.lineTo(20 * s, -119 * s); ctx.closePath(); ctx.fill();
+          ctx.fillStyle = colors["accent-fg"];
+          ctx.beginPath(); ctx.arc(0, -128 * s, 3 * s, 0, Math.PI * 2); ctx.fill();
+        }
+      }
+
+      function drawJacketDetails(item, s, slide) {
+        if (!item) return;
+        ctx.strokeStyle = colors["accent-fg"];
+        ctx.fillStyle = colors["accent-fg"];
+        ctx.globalAlpha = .72;
+        if (slide) {
+          ctx.lineWidth = 3 * s;
+          ctx.beginPath(); ctx.moveTo(-3 * s, -52 * s); ctx.lineTo(-3 * s, -26 * s); ctx.stroke();
+        } else if (item.style === "bomber") {
+          ctx.lineWidth = 3 * s;
+          ctx.beginPath(); ctx.moveTo(0, -88 * s); ctx.lineTo(0, -38 * s); ctx.stroke();
+          ctx.beginPath(); ctx.moveTo(-20 * s, -50 * s); ctx.lineTo(-7 * s, -54 * s); ctx.stroke();
+          ctx.beginPath(); ctx.moveTo(20 * s, -50 * s); ctx.lineTo(7 * s, -54 * s); ctx.stroke();
+        } else if (item.style === "signal") {
+          ctx.fillRect(-5 * s, -91 * s, 10 * s, 57 * s);
+          ctx.fillRect(-25 * s, -62 * s, 50 * s, 7 * s);
+        } else {
+          ctx.beginPath();
+          ctx.moveTo(-21 * s, -88 * s); ctx.lineTo(-2 * s, -63 * s); ctx.lineTo(-12 * s, -38 * s); ctx.closePath(); ctx.fill();
+          ctx.beginPath();
+          ctx.moveTo(21 * s, -88 * s); ctx.lineTo(2 * s, -63 * s); ctx.lineTo(12 * s, -38 * s); ctx.closePath(); ctx.fill();
+        }
+        ctx.globalAlpha = 1;
+      }
+
+      function drawPlayer() {
+        const base = project(player.visualLane, 0, player.y);
+        const s = Math.max(.72, Math.min(1, H / 780));
+        const slide = player.slide > 0;
+        const runnerColor = colors[characterDefs[selectedCharacter].color];
+        const loadout = characterLoadouts[selectedCharacter];
+        const jacket = loadout.jacket ? accessoriesById[loadout.jacket] : null;
+        const hair = loadout.hair ? accessoriesById[loadout.hair] : null;
+        const hat = loadout.hat ? accessoriesById[loadout.hat] : null;
+        const torsoColor = jacket ? colors[jacket.color] : runnerColor;
+        ctx.save();
+        ctx.translate(base.x, base.y);
+        ctx.rotate(player.tilt);
+
+        ctx.globalAlpha = Math.max(.08, .28 - player.y / 700);
+        ctx.fillStyle = colors.text;
+        ctx.beginPath(); ctx.ellipse(0, player.y * .15 + 7, 35 * s, 9 * s, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.globalAlpha = 1;
+
+        if (power === "shield") {
+          ctx.strokeStyle = colors.accent;
+          ctx.globalAlpha = .7 + Math.sin(performance.now() / 90) * .2;
+          ctx.lineWidth = 4;
+          ctx.beginPath(); ctx.arc(0, -52 * s, 49 * s, 0, Math.PI * 2); ctx.stroke();
+          ctx.globalAlpha = 1;
+        }
+
+        if (power === "jetpack") {
+          ctx.fillStyle = colors["border-strong"];
+          roundedRect(-31 * s, -80 * s, 14 * s, 45 * s, 5 * s); ctx.fill();
+          roundedRect(17 * s, -80 * s, 14 * s, 45 * s, 5 * s); ctx.fill();
+          const flame = (18 + Math.sin(performance.now() / 45) * 7) * s;
+          ctx.fillStyle = colors.warning;
+          ctx.beginPath();
+          ctx.moveTo(-29 * s, -35 * s); ctx.lineTo(-24 * s, (-35 * s) + flame); ctx.lineTo(-18 * s, -35 * s); ctx.fill();
+          ctx.beginPath();
+          ctx.moveTo(18 * s, -35 * s); ctx.lineTo(24 * s, (-35 * s) + flame); ctx.lineTo(29 * s, -35 * s); ctx.fill();
+          if (Math.random() < .45) {
+            particles.push({
+              x: base.x + (Math.random() < .5 ? -24 : 24) * s,
+              y: base.y - 22 * s,
+              vx: (Math.random() - .5) * 35,
+              vy: 85 + Math.random() * 90,
+              life: .2 + Math.random() * .2,
+              max: .4,
+              color: colors.warning,
+              size: 2 + Math.random() * 4
+            });
+          }
+        }
+
+        if (slide) {
+          ctx.fillStyle = colors.text;
+          roundedRect(-35 * s, -37 * s, 70 * s, 31 * s, 14 * s); ctx.fill();
+          ctx.fillStyle = torsoColor;
+          roundedRect(-20 * s, -54 * s, 35 * s, 30 * s, 12 * s); ctx.fill();
+          drawJacketDetails(jacket, s, true);
+          ctx.fillStyle = colors["accent-fg"];
+          ctx.beginPath(); ctx.arc(18 * s, -48 * s, 13 * s, 0, Math.PI * 2); ctx.fill();
+        } else {
+          ctx.strokeStyle = colors.text; ctx.lineWidth = 11 * s; ctx.lineCap = "round";
+          const stride = Math.sin(performance.now() / 95) * 9 * s;
+          ctx.beginPath(); ctx.moveTo(-8 * s, -38 * s); ctx.lineTo(-13 * s + stride, -3 * s); ctx.stroke();
+          ctx.beginPath(); ctx.moveTo(8 * s, -38 * s); ctx.lineTo(14 * s - stride, -3 * s); ctx.stroke();
+          ctx.fillStyle = torsoColor;
+          roundedRect(-25 * s, -91 * s, 50 * s, 57 * s, 15 * s); ctx.fill();
+          drawJacketDetails(jacket, s, false);
+          ctx.strokeStyle = colors.text; ctx.lineWidth = 9 * s;
+          ctx.beginPath(); ctx.moveTo(-20 * s, -76 * s); ctx.lineTo(-31 * s - stride * .5, -47 * s); ctx.stroke();
+          ctx.beginPath(); ctx.moveTo(20 * s, -76 * s); ctx.lineTo(31 * s + stride * .5, -48 * s); ctx.stroke();
+          ctx.fillStyle = colors["accent-fg"];
+          ctx.beginPath(); ctx.arc(0, -108 * s, 18 * s, 0, Math.PI * 2); ctx.fill();
+          if (hair) {
+            drawHair(hair, s);
+          } else {
+            ctx.fillStyle = colors.text;
+            ctx.beginPath(); ctx.arc(0, -113 * s, 18 * s, Math.PI, Math.PI * 2); ctx.fill();
+          }
+          if (!hair && selectedCharacter === "scout") {
+            ctx.strokeStyle = runnerColor;
+            ctx.lineWidth = 5 * s;
+            ctx.beginPath(); ctx.moveTo(-17 * s, -109 * s); ctx.lineTo(17 * s, -109 * s); ctx.stroke();
+            ctx.fillStyle = colors.text;
+            roundedRect(11 * s, -108 * s, 13 * s, 7 * s, 3 * s); ctx.fill();
+          } else if (!hair && selectedCharacter === "shadow") {
+            ctx.strokeStyle = runnerColor;
+            ctx.lineWidth = 7 * s;
+            ctx.beginPath(); ctx.arc(0, -108 * s, 23 * s, Math.PI * .88, Math.PI * 2.12); ctx.stroke();
+            ctx.fillStyle = runnerColor;
+            ctx.beginPath(); ctx.moveTo(-22 * s, -91 * s); ctx.lineTo(0, -72 * s); ctx.lineTo(22 * s, -91 * s); ctx.fill();
+          }
+          drawHat(hat, s);
+        }
+        ctx.restore();
+      }
+
+      function drawParticles() {
+        particles.forEach(p => {
+          ctx.globalAlpha = Math.max(0, p.life / p.max);
+          ctx.fillStyle = p.color;
+          ctx.fillRect(p.x, p.y, p.size, p.size);
+        });
+        ctx.globalAlpha = 1;
+      }
+
+      function draw() {
+        ctx.save();
+        if (shake > 0) ctx.translate((Math.random() - .5) * shake * 18, (Math.random() - .5) * shake * 12);
+        drawBackground();
+        objects.slice().sort((a, b) => b.z - a.z).forEach(drawObject);
+        drawPlayer();
+        drawParticles();
+        ctx.restore();
+      }
+
+      function loop(now) {
+        const dt = Math.min(.035, (now - last) / 1000 || 0);
+        last = now;
+        update(dt);
+        draw();
+        requestAnimationFrame(loop);
+      }
+
+      function handleKey(e) {
+        const key = e.key.toLowerCase();
+        if (["arrowleft", "arrowright", "arrowup", "arrowdown", " ", "a", "d", "w", "s"].includes(key)) e.preventDefault();
+        if (!ui.shop.classList.contains("hidden")) {
+          if (key === "escape") closeShop();
+          return;
+        }
+        if (state === "menu" && (key === "enter" || key === " ")) return startGame();
+        if (state === "over" && (key === "enter" || key === " ")) return startGame();
+        if (key === "p" || key === "escape") return togglePause();
+        if (key === "arrowleft" || key === "a") move(-1);
+        if (key === "arrowright" || key === "d") move(1);
+        if (key === "arrowup" || key === "w" || key === " ") jump();
+        if (key === "arrowdown" || key === "s") slide();
+      }
+
+      canvas.addEventListener("pointerdown", e => pointerStart = { x: e.clientX, y: e.clientY });
+      canvas.addEventListener("pointerup", e => {
+        if (!pointerStart || state !== "playing") return;
+        const dx = e.clientX - pointerStart.x, dy = e.clientY - pointerStart.y;
+        if (Math.max(Math.abs(dx), Math.abs(dy)) < 28) {
+          if (e.clientX < W * .34) move(-1);
+          else if (e.clientX > W * .66) move(1);
+          else jump();
+        } else if (Math.abs(dx) > Math.abs(dy)) move(dx > 0 ? 1 : -1);
+        else if (dy < 0) jump();
+        else slide();
+        pointerStart = null;
+      });
+      addEventListener("keydown", handleKey);
+      addEventListener("resize", resize);
+      $("startBtn").addEventListener("click", startGame);
+      $("restartBtn").addEventListener("click", startGame);
+      $("resumeBtn").addEventListener("click", () => togglePause(true));
+      $("pauseBtn").addEventListener("click", () => togglePause());
+      document.querySelectorAll(".shop-open").forEach(button => button.addEventListener("click", openShop));
+      document.querySelectorAll("[data-character]").forEach(button => button.addEventListener("click", () => chooseCharacter(button.dataset.character)));
+      ui.accessoryShop.addEventListener("click", event => {
+        const accessoryButton = event.target.closest("[data-accessory]");
+        const removeButton = event.target.closest("[data-remove]");
+        if (accessoryButton) chooseAccessory(accessoryButton.dataset.accessory);
+        else if (removeButton) removeAccessory(removeButton.dataset.remove);
+      });
+      $("shopClose").addEventListener("click", closeShop);
+      document.addEventListener("visibilitychange", () => {
+        if (document.hidden && state === "playing") togglePause();
+      });
+
+      readColors();
+      resize();
+      updateUI();
+      renderShop();
+      requestAnimationFrame(loop);
+    })();
+  </script>
+</body>
+</html>
