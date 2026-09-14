@@ -929,6 +929,26 @@
         return trainRoofHeight() + 115;
       }
 
+      function trainAtPosition(lane, z) {
+        return objects.find(o =>
+          !o.dead && o.type === "train" && o.lane === lane &&
+          o.z <= z && o.z + o.length >= z
+        ) || null;
+      }
+
+      function pickupLift(obj) {
+        if (power === "jetpack" && obj.type === "coin") return jetpackHeight();
+        return obj.type === "coin" && trainAtPosition(obj.lane, obj.z) ? 175 : 0;
+      }
+
+      function reconcileTrainContents() {
+        objects.forEach(obj => {
+          if ((obj.type === "barrier" || obj.type === "sign") && trainAtPosition(obj.lane, obj.z)) {
+            obj.dead = true;
+          }
+        });
+      }
+
       function getTrainSupport() {
         if (player.rideTrainId !== null) {
           const train = objects.find(o => o.id === player.rideTrainId && o.type === "train");
@@ -989,7 +1009,7 @@
 
       function collect(obj) {
         obj.dead = true;
-        const p = project(obj.lane, obj.z);
+        const p = project(obj.lane, obj.z, pickupLift(obj));
         if (obj.type === "coin") {
           coins++;
           wallet++;
@@ -1007,10 +1027,12 @@
       }
 
       function collision(obj) {
-        if (obj.checked || obj.z > .68 || obj.z < .2) return;
+        if (obj.dead || obj.checked || obj.z > .68 || obj.z < .2) return;
         obj.checked = true;
         const sameLane = Math.abs(obj.lane - player.visualLane) < .42;
         if (!sameLane) return;
+        const coinOnTrain = obj.type === "coin" && !!trainAtPosition(obj.lane, obj.z);
+        if (coinOnTrain && power !== "jetpack" && player.y < trainRoofHeight() - 35) return;
         if (obj.type === "coin" || obj.type === "magnet" || obj.type === "shield" || obj.type === "jetpack") {
           collect(obj);
           return;
@@ -1018,7 +1040,7 @@
         const safe = power === "jetpack" || player.rideTrainId !== null ||
           (obj.type === "train" && player.y >= trainRoofHeight() - 35) ||
           (obj.type === "barrier" && player.y > 72) ||
-          (obj.type === "sign" && player.slide > .08);
+          (obj.type === "sign" && (player.slide > .08 || player.y > 72));
         if (safe) {
           score += 20;
           return;
@@ -1070,8 +1092,9 @@
           if (power === "magnet" && o.type === "coin" && o.z < 2.5 && o.z > .25) {
             o.lane += (player.visualLane - o.lane) * Math.min(1, dt * 8);
           }
-          collision(o);
         });
+        reconcileTrainContents();
+        objects.forEach(collision);
         objects = objects.filter(o => !o.dead && (o.type === "train" ? o.z + o.length > -.25 : o.z > -.25));
         particles.forEach(p => {
           p.life -= dt; p.x += p.vx * dt; p.y += p.vy * dt; p.vy += 420 * dt;
@@ -1322,8 +1345,7 @@
       }
 
       function drawObject(o) {
-        const coinLift = power === "jetpack" && o.type === "coin" ? jetpackHeight() : 0;
-        const p = project(o.lane, o.z, coinLift);
+        const p = project(o.lane, o.z, pickupLift(o));
         if (o.type === "train") drawTrain(o, p);
         else if (o.type === "barrier") drawBarrier(o, p);
         else if (o.type === "sign") drawSign(o, p);
