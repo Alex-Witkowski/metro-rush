@@ -1332,10 +1332,9 @@
           ui.cheatInput.select();
           return;
         }
-        cheatMode = true;
         ui.cheat.classList.add("hidden");
         showToast("Conductor mode activated");
-        openShop();
+        openShop(true);
       }
 
       function startGame() {
@@ -1454,7 +1453,8 @@
         renderShop();
       }
 
-      function openShop() {
+      function openShop(freePurchases = false) {
+        cheatMode = freePurchases;
         shopReturn = state === "over" ? "over" : "menu";
         ui.start.classList.add("hidden");
         ui.over.classList.add("hidden");
@@ -1464,6 +1464,7 @@
 
       function closeShop() {
         ui.shop.classList.add("hidden");
+        cheatMode = false;
         (shopReturn === "over" ? ui.over : ui.start).classList.remove("hidden");
       }
 
@@ -2313,7 +2314,7 @@
       $("secretTrigger").addEventListener("click", registerSecretTap);
       $("cheatForm").addEventListener("submit", submitCheat);
       $("cheatClose").addEventListener("click", closeCheatAccess);
-      document.querySelectorAll(".shop-open").forEach(button => button.addEventListener("click", openShop));
+      document.querySelectorAll(".shop-open").forEach(button => button.addEventListener("click", () => openShop()));
       document.querySelectorAll(".vocab-open").forEach(button => button.addEventListener("click", openVocabulary));
       document.querySelectorAll("[data-character]").forEach(button => button.addEventListener("click", () => chooseCharacter(button.dataset.character)));
       ui.accessoryShop.addEventListener("click", event => {
