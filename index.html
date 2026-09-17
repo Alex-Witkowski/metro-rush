@@ -422,11 +422,12 @@
     .accessory-item.neon-stream .accessory-icon {
       background: linear-gradient(135deg, var(--cp-link), var(--cp-accent));
       color: var(--cp-accent-fg);
+      box-shadow: 0 0 8px var(--cp-link), 0 0 14px var(--cp-accent);
     }
     .accessory-item.royal-glitch .accessory-icon {
       background: linear-gradient(135deg, var(--cp-warning), var(--cp-accent), var(--cp-link));
       color: var(--cp-accent-fg);
-      box-shadow: inset 0 0 0 1px var(--cp-sheen);
+      box-shadow: inset 0 0 0 1px var(--cp-sheen), 0 0 10px var(--cp-warning), 0 0 16px var(--cp-accent);
     }
     .accessory-icon {
       width: 32px;
@@ -1067,7 +1068,7 @@
       const playerTrackZ = .5;
       const minimumTrainGap = .7;
       const powerDurations = { shield: 10, magnet: 8, jetpack: 6 };
-      const player = { lane: 0, visualLane: 0, y: 0, vy: 0, slide: 0, tilt: 0, grounded: true, rideTrainId: null, roofJump: false };
+      const player = { lane: 0, visualLane: 0, y: 0, vy: 0, slide: 0, tilt: 0, grounded: true, rideTrainId: null, roofJump: false, trailBurst: 0, trailDirection: 0 };
       const colors = {};
 
       function persistGameState() {
@@ -1146,7 +1147,7 @@
       function reset() {
         score = 0; coins = 0; speed = .34; roadOffset = 0; spawnTimer = .55;
         objects = []; particles = []; power = null; powerTime = 0; shake = 0;
-        Object.assign(player, { lane: 0, visualLane: 0, y: 0, vy: 0, slide: 0, tilt: 0, grounded: true, rideTrainId: null, roofJump: false });
+        Object.assign(player, { lane: 0, visualLane: 0, y: 0, vy: 0, slide: 0, tilt: 0, grounded: true, rideTrainId: null, roofJump: false, trailBurst: 0, trailDirection: 0 });
         updateUI();
       }
 
@@ -1500,6 +1501,8 @@
         }
         player.lane = targetLane;
         player.tilt = -dir * .24;
+        player.trailBurst = .42;
+        player.trailDirection = dir;
       }
       function jump() {
         if (state !== "playing") return;
@@ -1511,6 +1514,8 @@
           player.roofJump = player.rideTrainId !== null;
           player.vy = 720;
           player.grounded = false;
+          player.trailBurst = .55;
+          player.trailDirection = 0;
         }
       }
       function slide() {
@@ -1734,6 +1739,7 @@
           }
         }
         player.slide = Math.max(0, player.slide - dt);
+        player.trailBurst = Math.max(0, player.trailBurst - dt);
         spawnTimer -= dt;
         if (spawnTimer <= 0) {
           const spawnedTrain = spawnRow();
@@ -2096,25 +2102,30 @@
 
       function emitPixelTrail(base, s, trail) {
         if (!trail || state !== "playing") return;
-        const amount = trail.style === "royal-glitch" ? 2 : 1;
-        const chance = trail.style === "neon-stream" ? .78 : .62;
+        const royal = trail.style === "royal-glitch";
+        const actionBurst = player.trailBurst > 0;
+        if (!royal && !actionBurst) return;
+        const amount = royal ? (actionBurst ? 4 : 1) : trail.style === "neon-stream" ? 3 : 2;
+        const chance = royal ? (actionBurst ? .96 : .32) : .94;
         if (Math.random() > chance) return;
         const palettes = {
           "pixel-flare": [colors.warning, colors.accent],
-          "neon-stream": [colors.link, colors.accent],
+          "neon-stream": [colors.link, colors.accent, colors.success],
           "royal-glitch": [colors.warning, colors.accent, colors.link, colors["accent-fg"]]
         };
         for (let i = 0; i < amount; i++) {
           const palette = palettes[trail.style];
+          const directionOffset = actionBurst ? player.trailDirection * -22 * s : 0;
           particles.push({
-            x: base.x + (Math.random() - .5) * 54 * s,
+            x: base.x + directionOffset + (Math.random() - .5) * (actionBurst ? 72 : 38) * s,
             y: base.y - (8 + Math.random() * 56) * s,
-            vx: (Math.random() - .5) * (trail.style === "royal-glitch" ? 130 : 70),
+            vx: (actionBurst ? -player.trailDirection * 95 : 0) + (Math.random() - .5) * (royal ? 140 : 85),
             vy: 45 + Math.random() * 100,
-            life: .38 + Math.random() * (trail.style === "royal-glitch" ? .55 : .3),
-            max: trail.style === "royal-glitch" ? .95 : .68,
+            life: .38 + Math.random() * (royal ? .62 : .34),
+            max: royal ? 1 : .72,
             color: palette[Math.floor(Math.random() * palette.length)],
-            size: (trail.style === "neon-stream" ? 3 : 4) + Math.random() * (trail.style === "royal-glitch" ? 6 : 4),
+            size: (trail.style === "neon-stream" ? 3 : 4) + Math.random() * (royal ? 7 : 4),
+            glow: trail.style === "pixel-flare" ? 4 : royal ? (actionBurst ? 18 : 10) : 14,
             behind: true
           });
         }
@@ -2223,8 +2234,11 @@
         particles.filter(p => Boolean(p.behind) === behind).forEach(p => {
           ctx.globalAlpha = Math.max(0, p.life / p.max);
           ctx.fillStyle = p.color;
+          ctx.shadowColor = p.color;
+          ctx.shadowBlur = p.glow || 0;
           ctx.fillRect(p.x, p.y, p.size, p.size);
         });
+        ctx.shadowBlur = 0;
         ctx.globalAlpha = 1;
       }
 
