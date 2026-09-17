@@ -715,10 +715,95 @@
         pauseIcon: $("pauseIcon")
       };
 
+      const saveKey = "metro-rush-save-v1";
+      const saveCookie = "metroRushSave";
+
+      function storageGet(key) {
+        try {
+          return localStorage.getItem(key);
+        } catch {
+          return null;
+        }
+      }
+
+      function storageSet(key, value) {
+        try {
+          localStorage.setItem(key, value);
+          return true;
+        } catch {
+          return false;
+        }
+      }
+
+      function storageRemove(key) {
+        try {
+          localStorage.removeItem(key);
+        } catch {
+          // Cookie-backed saves still work when Safari blocks local storage.
+        }
+      }
+
+      function readSaveCookie() {
+        const prefix = `${saveCookie}=`;
+        const value = document.cookie.split("; ").find(entry => entry.startsWith(prefix));
+        if (!value) return null;
+        try {
+          const encoded = value.slice(prefix.length);
+          let serialized;
+          try {
+            serialized = atob(encoded);
+          } catch {
+            serialized = decodeURIComponent(encoded);
+          }
+          const data = JSON.parse(serialized);
+          return {
+            version: data.v,
+            best: data.b,
+            wallet: data.w,
+            unlockedCharacters: data.c,
+            selectedCharacter: data.s,
+            ownedAccessories: data.a,
+            characterLoadouts: data.l,
+            vocabularyStats: Object.fromEntries((data.q || []).map(([id, correct, wrong]) => [id, { correct, wrong }]))
+          };
+        } catch {
+          return null;
+        }
+      }
+
+      function writeSaveCookie(snapshot) {
+        const compact = {
+          v: snapshot.version,
+          b: snapshot.best,
+          w: snapshot.wallet,
+          c: snapshot.unlockedCharacters,
+          s: snapshot.selectedCharacter,
+          a: snapshot.ownedAccessories,
+          l: snapshot.characterLoadouts,
+          q: Object.entries(snapshot.vocabularyStats)
+            .filter(([, stats]) => stats.correct || stats.wrong)
+            .map(([id, stats]) => [Number(id), stats.correct || 0, stats.wrong || 0])
+        };
+        const secure = location.protocol === "https:" ? "; Secure" : "";
+        document.cookie = `${saveCookie}=${btoa(JSON.stringify(compact))}; Max-Age=315360000; Path=/; SameSite=Lax${secure}`;
+      }
+
+      function readDurableSave() {
+        try {
+          const stored = storageGet(saveKey);
+          if (stored) return JSON.parse(stored);
+        } catch {
+          // Fall through to the Safari cookie backup.
+        }
+        return readSaveCookie() || {};
+      }
+
+      const durableSave = readDurableSave();
       let W = 0, H = 0, dpr = 1, last = 0, state = "menu";
       let score = 0, coins = 0, speed = 0.34, roadOffset = 0, spawnTimer = 0;
-      let best = Number(localStorage.getItem("metro-rush-best") || 0);
-      const savedWallet = Number(localStorage.getItem("metro-rush-wallet") || 0);
+      let best = Number(durableSave.best ?? storageGet("metro-rush-best") ?? 0);
+      const savedWallet = Number(durableSave.wallet ?? storageGet("metro-rush-wallet") ?? 0);
+      if (!Number.isFinite(best) || best < 0) best = 0;
       let wallet = Number.isFinite(savedWallet) ? Math.max(0, savedWallet) : 0;
       const characterDefs = {
         runner: { name: "Riley", color: "accent", cost: 0 },
@@ -862,20 +947,20 @@
       ].map(([english, german], id) => ({ id, english, german }));
       let vocabularyStats;
       try {
-        vocabularyStats = JSON.parse(localStorage.getItem("metro-rush-vocabulary-stats") || "{}");
+        vocabularyStats = durableSave.vocabularyStats || JSON.parse(storageGet("metro-rush-vocabulary-stats") || "{}");
       } catch {
         vocabularyStats = {};
       }
       if (!vocabularyStats || typeof vocabularyStats !== "object" || Array.isArray(vocabularyStats)) vocabularyStats = {};
       let unlockedCharacters;
       try {
-        unlockedCharacters = JSON.parse(localStorage.getItem("metro-rush-characters") || '["runner"]');
+        unlockedCharacters = durableSave.unlockedCharacters || JSON.parse(storageGet("metro-rush-characters") || '["runner"]');
       } catch {
         unlockedCharacters = ["runner"];
       }
       if (!Array.isArray(unlockedCharacters)) unlockedCharacters = ["runner"];
       unlockedCharacters = [...new Set(["runner", ...unlockedCharacters.filter(id => characterDefs[id])])];
-      let selectedCharacter = localStorage.getItem("metro-rush-selected") || "runner";
+      let selectedCharacter = durableSave.selectedCharacter || storageGet("metro-rush-selected") || "runner";
       if (!unlockedCharacters.includes(selectedCharacter)) selectedCharacter = "runner";
       let currentQuestion = null;
       let quizLocked = false;
@@ -884,8 +969,8 @@
       let ownedAccessories;
       let characterLoadouts;
       try {
-        ownedAccessories = JSON.parse(localStorage.getItem("metro-rush-accessories") || "[]");
-        characterLoadouts = JSON.parse(localStorage.getItem("metro-rush-loadouts") || "{}");
+        ownedAccessories = durableSave.ownedAccessories || JSON.parse(storageGet("metro-rush-accessories") || "[]");
+        characterLoadouts = durableSave.characterLoadouts || JSON.parse(storageGet("metro-rush-loadouts") || "{}");
       } catch {
         ownedAccessories = [];
         characterLoadouts = {};
@@ -911,6 +996,34 @@
       const powerDurations = { shield: 10, magnet: 8, jetpack: 6 };
       const player = { lane: 0, visualLane: 0, y: 0, vy: 0, slide: 0, tilt: 0, grounded: true, rideTrainId: null };
       const colors = {};
+
+      function persistGameState() {
+        const snapshot = {
+          version: 1,
+          savedAt: Date.now(),
+          best,
+          wallet,
+          unlockedCharacters,
+          selectedCharacter,
+          ownedAccessories,
+          characterLoadouts,
+          vocabularyStats
+        };
+        storageSet(saveKey, JSON.stringify(snapshot));
+        storageSet("metro-rush-best", String(best));
+        storageSet("metro-rush-wallet", String(wallet));
+        storageSet("metro-rush-characters", JSON.stringify(unlockedCharacters));
+        storageSet("metro-rush-selected", selectedCharacter);
+        storageSet("metro-rush-accessories", JSON.stringify(ownedAccessories));
+        storageSet("metro-rush-loadouts", JSON.stringify(characterLoadouts));
+        storageSet("metro-rush-vocabulary-stats", JSON.stringify(vocabularyStats));
+        writeSaveCookie(snapshot);
+      }
+
+      function checkpointProgress() {
+        if (state === "playing" || state === "paused") best = Math.max(best, Math.floor(score));
+        persistGameState();
+      }
 
       function readColors() {
         const s = getComputedStyle(document.documentElement);
@@ -1059,7 +1172,7 @@
         const stats = vocabularyStats[currentQuestion.item.id] || { correct: 0, wrong: 0 };
         stats[correct ? "correct" : "wrong"]++;
         vocabularyStats[currentQuestion.item.id] = stats;
-        localStorage.setItem("metro-rush-vocabulary-stats", JSON.stringify(vocabularyStats));
+        persistGameState();
         [...ui.quizOptions.children].forEach(option => {
           option.disabled = true;
           if (option.dataset.correct === "true") option.classList.add("correct");
@@ -1144,8 +1257,8 @@
         const rounded = Math.floor(score);
         if (rounded > best) {
           best = rounded;
-          localStorage.setItem("metro-rush-best", best);
         }
+        persistGameState();
         ui.finalScore.textContent = rounded.toLocaleString();
         ui.finalCoins.textContent = coins;
         ui.finalWallet.textContent = wallet.toLocaleString();
@@ -1155,11 +1268,7 @@
       }
 
       function saveCollection() {
-        localStorage.setItem("metro-rush-wallet", wallet);
-        localStorage.setItem("metro-rush-characters", JSON.stringify(unlockedCharacters));
-        localStorage.setItem("metro-rush-selected", selectedCharacter);
-        localStorage.setItem("metro-rush-accessories", JSON.stringify(ownedAccessories));
-        localStorage.setItem("metro-rush-loadouts", JSON.stringify(characterLoadouts));
+        persistGameState();
       }
 
       function renderShop() {
@@ -1422,7 +1531,7 @@
         if (obj.type === "coin") {
           coins++;
           wallet++;
-          localStorage.setItem("metro-rush-wallet", wallet);
+          persistGameState();
           score += 35;
           burst(p.x, p.y, colors.warning, 7);
           if (coins % 10 === 0) showToast(`${coins} coins collected`);
@@ -2011,18 +2120,23 @@
       $("vocabClose").addEventListener("click", closeVocabulary);
       $("vocabReset").addEventListener("click", () => {
         vocabularyStats = {};
-        localStorage.removeItem("metro-rush-vocabulary-stats");
+        storageRemove("metro-rush-vocabulary-stats");
+        persistGameState();
         renderVocabularyOverview();
         showToast("Vocabulary statistics reset");
       });
       document.addEventListener("visibilitychange", () => {
-        if (document.hidden && state === "playing") togglePause();
+        if (!document.hidden) return;
+        if (state === "playing") togglePause();
+        checkpointProgress();
       });
+      addEventListener("pagehide", checkpointProgress);
 
       readColors();
       resize();
       updateUI();
       renderShop();
+      persistGameState();
       requestAnimationFrame(loop);
     })();
   </script>
