@@ -635,8 +635,8 @@
         <p class="intro">Dash through the midnight rail yard. Dodge trains, clear barriers, collect coins, and chase your longest run.</p>
         <div class="controls">
           <div class="control"><span class="keys">← →</span><span class="action">Switch lanes</span></div>
-          <div class="control"><span class="keys">↑</span><span class="action">Jump</span></div>
-          <div class="control"><span class="keys">↓</span><span class="action">Slide</span></div>
+          <div class="control"><span class="keys">↑</span><span class="action">Jump / stand</span></div>
+          <div class="control"><span class="keys">↓</span><span class="action">Slide / land</span></div>
         </div>
         <button class="primary" id="startBtn">Start the run</button>
         <button class="secondary shop-open">Choose runner</button>
@@ -1067,7 +1067,7 @@
       const playerTrackZ = .5;
       const minimumTrainGap = .7;
       const powerDurations = { shield: 10, magnet: 8, jetpack: 6 };
-      const player = { lane: 0, visualLane: 0, y: 0, vy: 0, slide: 0, tilt: 0, grounded: true, rideTrainId: null };
+      const player = { lane: 0, visualLane: 0, y: 0, vy: 0, slide: 0, tilt: 0, grounded: true, rideTrainId: null, roofJump: false };
       const colors = {};
 
       function persistGameState() {
@@ -1146,7 +1146,7 @@
       function reset() {
         score = 0; coins = 0; speed = .34; roadOffset = 0; spawnTimer = .55;
         objects = []; particles = []; power = null; powerTime = 0; shake = 0;
-        Object.assign(player, { lane: 0, visualLane: 0, y: 0, vy: 0, slide: 0, tilt: 0, grounded: true, rideTrainId: null });
+        Object.assign(player, { lane: 0, visualLane: 0, y: 0, vy: 0, slide: 0, tilt: 0, grounded: true, rideTrainId: null, roofJump: false });
         updateUI();
       }
 
@@ -1502,13 +1502,25 @@
         player.tilt = -dir * .24;
       }
       function jump() {
-        if (state === "playing" && player.grounded && player.slide <= 0) {
+        if (state !== "playing") return;
+        if (player.slide > 0) {
+          player.slide = 0;
+          return;
+        }
+        if (player.grounded) {
+          player.roofJump = player.rideTrainId !== null;
           player.vy = 720;
           player.grounded = false;
         }
       }
       function slide() {
-        if (state === "playing" && player.y < 8) player.slide = .72;
+        if (state !== "playing") return;
+        if (!player.grounded && player.y > 0) {
+          player.vy = Math.min(player.vy, -1100);
+          player.slide = 0;
+          return;
+        }
+        if (player.y < 8) player.slide = .72;
       }
 
       function spawnRow() {
@@ -1584,6 +1596,7 @@
         if (player.rideTrainId !== null) {
           const train = objects.find(o => o.id === player.rideTrainId && o.type === "train");
           if (!train || train.lane !== player.lane || train.z + train.length < playerTrackZ) {
+            if (player.y > 0) player.roofJump = true;
             player.rideTrainId = null;
           } else {
             const roof = trainRoofHeight();
@@ -1612,6 +1625,7 @@
         );
         if (landingTrain && player.vy <= 0 && player.y >= roof - 35 && player.y <= roof + 90) {
           player.rideTrainId = landingTrain.id;
+          player.roofJump = false;
           return roof;
         }
         return null;
@@ -1668,10 +1682,10 @@
           collect(obj);
           return;
         }
-        const safe = power === "jetpack" || player.rideTrainId !== null ||
+        const safe = power === "jetpack" || player.rideTrainId !== null || player.roofJump ||
           (obj.type === "train" && player.y >= trainRoofHeight() - 35) ||
           (obj.type === "barrier" && player.y > 72) ||
-          (obj.type === "sign" && (player.slide > .08 || player.y > 72));
+          (obj.type === "sign" && player.slide > .08);
         if (safe) {
           score += 20;
           return;
@@ -1697,6 +1711,7 @@
         const supportHeight = getTrainSupport();
         if (power === "jetpack") {
           player.rideTrainId = null;
+          player.roofJump = false;
           player.y += (jetpackHeight() - player.y) * Math.min(1, dt * 5);
           player.vy = 0;
           player.slide = 0;
@@ -1705,11 +1720,18 @@
           player.y = supportHeight;
           player.vy = 0;
           player.grounded = true;
+          player.roofJump = false;
         } else if (player.vy || player.y) {
           player.grounded = false;
           player.y += player.vy * dt;
           player.vy -= 1750 * dt;
-          if (player.y <= 0) { player.y = 0; player.vy = 0; player.grounded = true; player.rideTrainId = null; }
+          if (player.y <= 0) {
+            player.y = 0;
+            player.vy = 0;
+            player.grounded = true;
+            player.rideTrainId = null;
+            player.roofJump = false;
+          }
         }
         player.slide = Math.max(0, player.slide - dt);
         spawnTimer -= dt;
