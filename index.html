@@ -410,6 +410,11 @@
       background: var(--cp-surface-soft);
     }
     .accessory-item.equipped { border-color: var(--cp-accent); background: var(--cp-highlight); }
+    .accessory-item.royal .accessory-icon {
+      background: linear-gradient(135deg, var(--cp-accent), var(--cp-warning));
+      color: var(--cp-accent-fg);
+      box-shadow: inset 0 0 0 1px var(--cp-sheen);
+    }
     .accessory-icon {
       width: 32px;
       height: 32px;
@@ -870,7 +875,7 @@
         jacket: [
           { id: "yard-bomber", name: "Yard Bomber", price: 2000, icon: "Y", color: "border-strong", style: "bomber" },
           { id: "signal-jacket", name: "Signal Jacket", price: 3200, icon: "Ⅱ", color: "warning", style: "signal" },
-          { id: "royal-coat", name: "Royal Coat", price: 5000, icon: "V", color: "accent", style: "royal" }
+          { id: "royal-coat", name: "Royal Coat", price: 12000, icon: "V", color: "accent", style: "royal" }
         ]
       };
       const accessoriesById = Object.fromEntries(Object.entries(accessoryDefs).flatMap(([category, items]) => items.map(item => [item.id, { ...item, category }])));
@@ -1389,7 +1394,7 @@
                 const owned = ownedAccessories.includes(item.id);
                 const equipped = loadout[category] === item.id;
                 return `
-                  <article class="accessory-item${equipped ? " equipped" : ""}">
+                  <article class="accessory-item ${item.style}${equipped ? " equipped" : ""}">
                     <span class="accessory-icon">${item.icon}</span>
                     <span class="accessory-info">
                       <span class="accessory-name">${item.name}</span>
@@ -2003,6 +2008,18 @@
         }
       }
 
+      function jacketFill(item, s, slide, fallback) {
+        if (!item) return fallback;
+        if (item.style !== "royal") return colors[item.color];
+        const gradient = slide
+          ? ctx.createLinearGradient(-20 * s, -54 * s, 15 * s, -24 * s)
+          : ctx.createLinearGradient(-25 * s, -91 * s, 25 * s, -34 * s);
+        gradient.addColorStop(0, colors.accent);
+        gradient.addColorStop(.52, colors.warning);
+        gradient.addColorStop(1, colors["accent-hover"]);
+        return gradient;
+      }
+
       function drawJacketDetails(item, s, slide) {
         if (!item) return;
         ctx.strokeStyle = colors["accent-fg"];
@@ -2019,11 +2036,19 @@
         } else if (item.style === "signal") {
           ctx.fillRect(-5 * s, -91 * s, 10 * s, 57 * s);
           ctx.fillRect(-25 * s, -62 * s, 50 * s, 7 * s);
-        } else {
+        } else if (item.style === "royal") {
           ctx.beginPath();
           ctx.moveTo(-21 * s, -88 * s); ctx.lineTo(-2 * s, -63 * s); ctx.lineTo(-12 * s, -38 * s); ctx.closePath(); ctx.fill();
           ctx.beginPath();
           ctx.moveTo(21 * s, -88 * s); ctx.lineTo(2 * s, -63 * s); ctx.lineTo(12 * s, -38 * s); ctx.closePath(); ctx.fill();
+          ctx.globalAlpha = .95;
+          ctx.strokeStyle = colors.warning;
+          ctx.lineWidth = 2 * s;
+          ctx.beginPath(); ctx.moveTo(-18 * s, -39 * s); ctx.lineTo(18 * s, -39 * s); ctx.stroke();
+          ctx.fillStyle = colors.warning;
+          [-74, -62, -50].forEach(y => {
+            ctx.beginPath(); ctx.arc(0, y * s, 2.2 * s, 0, Math.PI * 2); ctx.fill();
+          });
         }
         ctx.globalAlpha = 1;
       }
@@ -2037,10 +2062,10 @@
         const jacket = loadout.jacket ? accessoriesById[loadout.jacket] : null;
         const hair = loadout.hair ? accessoriesById[loadout.hair] : null;
         const hat = loadout.hat ? accessoriesById[loadout.hat] : null;
-        const torsoColor = jacket ? colors[jacket.color] : runnerColor;
         ctx.save();
         ctx.translate(base.x, base.y);
         ctx.rotate(player.tilt);
+        const torsoColor = jacketFill(jacket, s, slide, runnerColor);
 
         ctx.globalAlpha = Math.max(.08, .28 - player.y / 700);
         ctx.fillStyle = colors.text;
