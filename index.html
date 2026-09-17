@@ -1230,8 +1230,8 @@
         ui.quizFeedback.className = `quiz-feedback ${correct ? "correct" : "wrong"}`;
         ui.quizFeedback.textContent = correct
           ? "Correct! Your run starts now."
-          : `Not quite. Correct answer: ${currentQuestion.correct}`;
-        setTimeout(startGame, correct ? 800 : 1400);
+          : `Not quite. Correct answer: ${currentQuestion.correct}. Next question…`;
+        setTimeout(correct ? startGame : requestRun, correct ? 800 : 1600);
       }
 
       function closeQuiz() {
