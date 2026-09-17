@@ -439,6 +439,88 @@
     .accessory-action.buy { border-color: var(--cp-warning); }
     .accessory-action.active { border-color: var(--cp-accent); background: var(--cp-accent); color: var(--cp-accent-fg); cursor: default; }
     .shop-close { margin-top: 12px; }
+    .learning-card { width: min(620px, 100%); }
+    .quiz-direction {
+      margin: 0 0 8px;
+      color: var(--cp-text-muted);
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+    }
+    .quiz-word {
+      margin: 0 0 22px;
+      color: var(--cp-text);
+      font-size: clamp(27px, 6vw, 44px);
+      line-height: 1.12;
+      letter-spacing: -.025em;
+    }
+    .quiz-options { display: grid; grid-template-columns: repeat(2, 1fr); gap: 9px; }
+    .quiz-option {
+      min-height: 58px;
+      padding: 10px 12px;
+      border: 1px solid var(--cp-border);
+      border-radius: 0.625rem;
+      background: var(--cp-surface-soft);
+      color: var(--cp-text);
+      font-weight: 700;
+      line-height: 1.3;
+      cursor: pointer;
+      transition: border-color .15s, background .15s, transform .15s;
+    }
+    .quiz-option:hover:not(:disabled) { border-color: var(--cp-accent); transform: translateY(-1px); }
+    .quiz-option.correct { border-color: var(--cp-success); background: var(--cp-surface); color: var(--cp-success); }
+    .quiz-option.wrong { border-color: var(--cp-danger); background: var(--cp-surface); color: var(--cp-danger); }
+    .quiz-option:disabled { cursor: default; }
+    .quiz-feedback { min-height: 22px; margin: 15px 0 0; font-size: 12px; font-weight: 800; }
+    .quiz-feedback.correct { color: var(--cp-success); }
+    .quiz-feedback.wrong { color: var(--cp-danger); }
+    .vocab-card {
+      width: min(900px, 100%);
+      max-height: calc(100vh - 32px);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      text-align: left;
+    }
+    .vocab-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+    .vocab-head h2 { margin: 0; font-size: clamp(27px, 5vw, 42px); line-height: 1; letter-spacing: -.04em; }
+    .vocab-summary { display: flex; gap: 7px; flex-shrink: 0; }
+    .summary-pill {
+      min-width: 72px;
+      padding: 7px 9px;
+      border: 1px solid var(--cp-border);
+      border-radius: 0.625rem;
+      background: var(--cp-surface-soft);
+      text-align: center;
+    }
+    .summary-pill strong { display: block; font-family: Consolas, "Courier New", Courier, monospace; font-size: 17px; }
+    .summary-pill span { color: var(--cp-text-muted); font-size: 8px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+    .summary-pill.correct strong { color: var(--cp-success); }
+    .summary-pill.wrong strong { color: var(--cp-danger); }
+    .vocab-table-wrap { margin-top: 18px; overflow: auto; border: 1px solid var(--cp-border); border-radius: 0.625rem; }
+    .vocab-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    .vocab-table th {
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--cp-border);
+      background: var(--cp-surface);
+      color: var(--cp-text-muted);
+      font-size: 9px;
+      letter-spacing: .1em;
+      text-align: left;
+      text-transform: uppercase;
+    }
+    .vocab-table td { padding: 9px 12px; border-bottom: 1px solid var(--cp-border); vertical-align: top; }
+    .vocab-table tbody tr:last-child td { border-bottom: 0; }
+    .vocab-table tbody tr:nth-child(even) { background: var(--cp-surface-soft); }
+    .vocab-table .count { width: 72px; font-family: Consolas, "Courier New", Courier, monospace; font-weight: 800; text-align: center; }
+    .vocab-table .right { color: var(--cp-success); }
+    .vocab-table .wrong { color: var(--cp-danger); }
+    .vocab-actions { display: flex; gap: 8px; margin-top: 12px; }
+    .vocab-actions button { margin-top: 0; }
 
     @media (max-width: 650px) {
       .topbar { inset-inline: 12px; }
@@ -459,6 +541,13 @@
       .accessory-item { grid-template-columns: 1fr; padding: 7px; text-align: center; }
       .accessory-icon { margin: auto; }
       .results { grid-template-columns: repeat(2, 1fr); }
+      .quiz-options { grid-template-columns: 1fr; }
+      .quiz-option { min-height: 48px; }
+      .vocab-card { padding: 22px 14px; }
+      .vocab-head { display: block; }
+      .vocab-summary { margin-top: 12px; }
+      .vocab-table th, .vocab-table td { padding: 8px; }
+      .vocab-table .count { width: 48px; }
     }
   </style>
 </head>
@@ -504,6 +593,7 @@
         </div>
         <button class="primary" id="startBtn">Start the run</button>
         <button class="secondary shop-open">Choose runner</button>
+        <button class="secondary vocab-open">Vocabulary progress</button>
         <p class="hint">Keyboard, swipe, or tap the left/right sides</p>
       </div>
     </section>
@@ -530,7 +620,43 @@
         </div>
         <button class="primary" id="restartBtn">Run it back</button>
         <button class="secondary shop-open">Choose runner</button>
+        <button class="secondary vocab-open">Vocabulary progress</button>
         <p class="hint">Press Enter or Space to restart</p>
+      </div>
+    </section>
+
+    <section class="overlay hidden" id="quizOverlay">
+      <div class="card learning-card">
+        <div class="eyebrow"><i class="pulse"></i> Vocabulary checkpoint</div>
+        <p class="quiz-direction" id="quizDirection">Choose the German translation</p>
+        <h2 class="quiz-word" id="quizWord">my favourite</h2>
+        <div class="quiz-options" id="quizOptions"></div>
+        <p class="quiz-feedback" id="quizFeedback">Choose one answer to start your run.</p>
+      </div>
+    </section>
+
+    <section class="overlay hidden" id="vocabOverlay">
+      <div class="card vocab-card">
+        <div class="vocab-head">
+          <div>
+            <div class="eyebrow">Learning overview</div>
+            <h2>Vocabulary progress</h2>
+          </div>
+          <div class="vocab-summary">
+            <div class="summary-pill correct"><strong id="vocabCorrect">0</strong><span>Correct</span></div>
+            <div class="summary-pill wrong"><strong id="vocabWrong">0</strong><span>Wrong</span></div>
+          </div>
+        </div>
+        <div class="vocab-table-wrap">
+          <table class="vocab-table">
+            <thead><tr><th>English</th><th>Deutsch</th><th class="count">Right</th><th class="count">Wrong</th></tr></thead>
+            <tbody id="vocabTableBody"></tbody>
+          </table>
+        </div>
+        <div class="vocab-actions">
+          <button class="secondary" id="vocabClose">Back</button>
+          <button class="secondary" id="vocabReset">Reset statistics</button>
+        </div>
       </div>
     </section>
 
@@ -579,6 +705,10 @@
         start: $("startOverlay"), pause: $("pauseOverlay"), over: $("gameOverOverlay"),
         shop: $("shopOverlay"), wallet: $("walletValue"), accessoryShop: $("accessoryShop"),
         outfitRunner: $("outfitRunner"),
+        quiz: $("quizOverlay"), quizDirection: $("quizDirection"), quizWord: $("quizWord"),
+        quizOptions: $("quizOptions"), quizFeedback: $("quizFeedback"),
+        vocab: $("vocabOverlay"), vocabBody: $("vocabTableBody"),
+        vocabCorrect: $("vocabCorrect"), vocabWrong: $("vocabWrong"),
         power: $("powerWrap"), powerName: $("powerName"), powerTime: $("powerTime"),
         powerFill: $("powerFill"), flash: $("flash"), toast: $("toast"),
         finalScore: $("finalScore"), finalCoins: $("finalCoins"), finalWallet: $("finalWallet"), finalBest: $("finalBest"),
@@ -613,6 +743,130 @@
         ]
       };
       const accessoriesById = Object.fromEntries(Object.entries(accessoryDefs).flatMap(([category, items]) => items.map(item => [item.id, { ...item, category }])));
+      const vocabulary = [
+        ["my favourite", "mein Lieblings-… / mein Favorit"],
+        ["I like", "ich mag"],
+        ["(to) like", "mögen / gernhaben"],
+        ["(to) take photos", "Fotos machen"],
+        ["great", "großartig / toll"],
+        ["big", "groß"],
+        ["sister", "Schwester"],
+        ["best", "beste / bester / bestes"],
+        ["and", "und"],
+        ["we are", "wir sind"],
+        ["twin", "Zwilling"],
+        ["(to) have", "haben"],
+        ["funny", "lustig / witzig"],
+        ["football", "Fußball"],
+        ["food", "Essen"],
+        ["(to) cook", "kochen"],
+        ["netball", "Netball / Korbball"],
+        ["he’s (he is)", "er ist"],
+        ["good", "gut"],
+        ["brother", "Bruder"],
+        ["Who is it?", "Wer ist es?"],
+        ["or", "oder"],
+        ["I", "ich"],
+        ["you", "du"],
+        ["he", "er"],
+        ["she", "sie"],
+        ["it", "es"],
+        ["we", "wir"],
+        ["you", "ihr / Sie"],
+        ["they", "sie"],
+        ["hobby", "Hobby"],
+        ["hobbies", "Hobbys"],
+        ["you too", "du auch / ihr auch / Sie auch"],
+        ["(to) watch", "ansehen / anschauen / beobachten"],
+        ["you’re (you are)", "du bist / ihr seid / Sie sind"],
+        ["my turn", "ich bin dran"],
+        ["(to) draw", "zeichnen"],
+        ["picture", "Bild / Foto"],
+        ["pet", "Haustier"],
+        ["game", "Spiel"],
+        ["(to) sing", "singen"],
+        ["horse", "Pferd"],
+        ["(to) dance", "tanzen"],
+        ["at Ruby and Ryan’s house", "bei Ruby und Ryan zu Hause"],
+        ["house", "Haus"],
+        ["Hello!", "Hallo!"],
+        ["lovely", "schön / toll"],
+        ["(to) join", "mitmachen / sich anschließen"],
+        ["(to) tap", "tippen / antippen"],
+        ["My name is …", "Ich heiße … / Mein Name ist …"],
+        ["(to) be", "sein"],
+        ["What’s your name?", "Wie heißt du? / Wie heißen Sie?"],
+        ["Hi!", "Hi! / Hallo!"],
+        ["I’m …", "Ich bin …"],
+        ["Where are you?", "Wo bist du?"],
+        ["I’m from …", "Ich komme aus …"],
+        ["but", "aber"],
+        ["I live in …", "Ich wohne in …"],
+        ["(to) live", "wohnen / leben"],
+        ["How old are you?", "Wie alt bist du? / Wie alt sind Sie?"],
+        ["Me too.", "Ich auch."],
+        ["See you!", "Bis dann! / Bis bald!"],
+        ["(to) see", "sehen"],
+        ["Bye!", "Tschüss!"],
+        ["new", "neu"],
+        ["friend", "Freund / Freundin"],
+        ["I can", "ich kann"],
+        ["have a picnic", "ein Picknick machen"],
+        ["have a snack", "eine Kleinigkeit essen"],
+        ["eat a pizza", "eine Pizza essen"],
+        ["eat a sandwich", "ein Sandwich essen"],
+        ["eat a banana", "eine Banane essen"],
+        ["play football", "Fußball spielen"],
+        ["read a book", "ein Buch lesen"],
+        ["wait for friends", "auf Freunde warten"],
+        ["talk to friends", "mit Freunden sprechen / reden"],
+        ["meet friends", "Freunde treffen"],
+        ["sit on a bench", "auf einer Bank sitzen"],
+        ["blue", "blau"],
+        ["black", "schwarz"],
+        ["white", "weiß"],
+        ["yellow", "gelb"],
+        ["purple", "lila / violett"],
+        ["red", "rot"],
+        ["green", "grün"],
+        ["orange", "orange"],
+        ["brown", "braun"],
+        ["pink", "pink / rosa"],
+        ["grey", "grau"],
+        ["Welcome to London!", "Willkommen in London!"],
+        ["What can you hear?", "Was kannst du hören?"],
+        ["near", "nahe / in der Nähe"],
+        ["the", "der / die / das"],
+        ["a / an", "ein / eine"],
+        ["boat", "Boot"],
+        ["flower", "Blume"],
+        ["girl", "Mädchen"],
+        ["on", "auf / an / in"],
+        ["on skates", "auf Rollschuhen / Inlineskates"],
+        ["boy", "Junge"],
+        ["mother", "Mutter"],
+        ["father", "Vater"],
+        ["dog", "Hund"],
+        ["cat", "Katze"],
+        ["bird", "Vogel"],
+        ["butterfly", "Schmetterling"],
+        ["bee", "Biene"],
+        ["tree", "Baum"],
+        ["grass", "Gras"],
+        ["bike", "Fahrrad"],
+        ["read", "lesen"],
+        ["book", "Buch"],
+        ["play", "spielen"],
+        ["ride", "fahren / reiten"],
+        ["talk to", "mit jemandem sprechen / reden"]
+      ].map(([english, german], id) => ({ id, english, german }));
+      let vocabularyStats;
+      try {
+        vocabularyStats = JSON.parse(localStorage.getItem("metro-rush-vocabulary-stats") || "{}");
+      } catch {
+        vocabularyStats = {};
+      }
+      if (!vocabularyStats || typeof vocabularyStats !== "object" || Array.isArray(vocabularyStats)) vocabularyStats = {};
       let unlockedCharacters;
       try {
         unlockedCharacters = JSON.parse(localStorage.getItem("metro-rush-characters") || '["runner"]');
@@ -623,6 +877,10 @@
       unlockedCharacters = [...new Set(["runner", ...unlockedCharacters.filter(id => characterDefs[id])])];
       let selectedCharacter = localStorage.getItem("metro-rush-selected") || "runner";
       if (!unlockedCharacters.includes(selectedCharacter)) selectedCharacter = "runner";
+      let currentQuestion = null;
+      let quizLocked = false;
+      let learningReturn = "menu";
+      let lastVocabularyId = -1;
       let ownedAccessories;
       let characterLoadouts;
       try {
@@ -706,6 +964,140 @@
         updateUI();
       }
 
+      function shuffle(items) {
+        const result = [...items];
+        for (let i = result.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [result[i], result[j]] = [result[j], result[i]];
+        }
+        return result;
+      }
+
+      function makeMisspelling(text) {
+        const words = text.match(/[A-Za-zÄÖÜäöüß]+/g) || [];
+        const word = words.sort((a, b) => b.length - a.length)[0] || text;
+        let typo;
+        if (word.length === 1) typo = word === "I" ? "l" : `${word}${word}`;
+        else if (word.length === 2) typo = word[1] + word[0];
+        else {
+          const index = Math.max(1, Math.floor(word.length / 2) - 1);
+          typo = word.slice(0, index) + word[index + 1] + word[index] + word.slice(index + 2);
+        }
+        const result = text.replace(word, typo);
+        return result === text ? text.replace(word, word.slice(0, -1)) : result;
+      }
+
+      function createQuestion() {
+        let item;
+        do {
+          item = vocabulary[Math.floor(Math.random() * vocabulary.length)];
+        } while (vocabulary.length > 1 && item.id === lastVocabularyId);
+        lastVocabularyId = item.id;
+        const askGerman = Math.random() < .5;
+        const answerKey = askGerman ? "german" : "english";
+        const correct = item[answerKey];
+        const wrongAnswers = shuffle(vocabulary.filter(entry => entry.id !== item.id))
+          .map(entry => entry[answerKey])
+          .filter((answer, index, all) => answer !== correct && all.indexOf(answer) === index)
+          .slice(0, 2);
+        const options = shuffle([
+          { text: correct, correct: true },
+          { text: makeMisspelling(correct), correct: false },
+          ...wrongAnswers.map(text => ({ text, correct: false }))
+        ]);
+        return {
+          item,
+          prompt: askGerman ? item.english : item.german,
+          direction: askGerman ? "Choose the correct German translation" : "Choose the correct English translation",
+          correct,
+          options
+        };
+      }
+
+      function requestRun() {
+        learningReturn = state === "over" ? "over" : "menu";
+        currentQuestion = createQuestion();
+        quizLocked = false;
+        ui.start.classList.add("hidden");
+        ui.over.classList.add("hidden");
+        ui.shop.classList.add("hidden");
+        ui.vocab.classList.add("hidden");
+        ui.quizDirection.textContent = currentQuestion.direction;
+        ui.quizWord.textContent = currentQuestion.prompt;
+        ui.quizFeedback.className = "quiz-feedback";
+        ui.quizFeedback.textContent = "Choose one answer to start your run.";
+        ui.quizOptions.replaceChildren();
+        currentQuestion.options.forEach((option, index) => {
+          const button = document.createElement("button");
+          button.className = "quiz-option";
+          button.textContent = `${index + 1}. ${option.text}`;
+          button.dataset.correct = String(option.correct);
+          button.addEventListener("click", () => answerQuestion(button, option.correct));
+          ui.quizOptions.append(button);
+        });
+        ui.quiz.classList.remove("hidden");
+      }
+
+      function answerQuestion(button, correct) {
+        if (quizLocked || !currentQuestion) return;
+        quizLocked = true;
+        const stats = vocabularyStats[currentQuestion.item.id] || { correct: 0, wrong: 0 };
+        stats[correct ? "correct" : "wrong"]++;
+        vocabularyStats[currentQuestion.item.id] = stats;
+        localStorage.setItem("metro-rush-vocabulary-stats", JSON.stringify(vocabularyStats));
+        [...ui.quizOptions.children].forEach(option => {
+          option.disabled = true;
+          if (option.dataset.correct === "true") option.classList.add("correct");
+        });
+        if (!correct) button.classList.add("wrong");
+        ui.quizFeedback.className = `quiz-feedback ${correct ? "correct" : "wrong"}`;
+        ui.quizFeedback.textContent = correct
+          ? "Correct! Your run starts now."
+          : `Not quite. Correct answer: ${currentQuestion.correct}`;
+        setTimeout(startGame, correct ? 800 : 1400);
+      }
+
+      function closeQuiz() {
+        if (quizLocked) return;
+        ui.quiz.classList.add("hidden");
+        (learningReturn === "over" ? ui.over : ui.start).classList.remove("hidden");
+      }
+
+      function renderVocabularyOverview() {
+        let correctTotal = 0;
+        let wrongTotal = 0;
+        ui.vocabBody.replaceChildren();
+        vocabulary.forEach(item => {
+          const stats = vocabularyStats[item.id] || { correct: 0, wrong: 0 };
+          correctTotal += stats.correct || 0;
+          wrongTotal += stats.wrong || 0;
+          const row = document.createElement("tr");
+          [item.english, item.german, stats.correct || 0, stats.wrong || 0].forEach((value, index) => {
+            const cell = document.createElement("td");
+            cell.textContent = value;
+            if (index > 1) cell.className = `count ${index === 2 ? "right" : "wrong"}`;
+            row.append(cell);
+          });
+          ui.vocabBody.append(row);
+        });
+        ui.vocabCorrect.textContent = correctTotal;
+        ui.vocabWrong.textContent = wrongTotal;
+      }
+
+      function openVocabulary() {
+        learningReturn = state === "over" ? "over" : "menu";
+        ui.start.classList.add("hidden");
+        ui.over.classList.add("hidden");
+        ui.shop.classList.add("hidden");
+        renderVocabularyOverview();
+        ui.vocab.classList.remove("hidden");
+      }
+
+      function closeVocabulary() {
+        ui.vocab.classList.add("hidden");
+        (learningReturn === "over" ? ui.over : ui.start).classList.remove("hidden");
+      }
+
       function startGame() {
         reset();
         state = "playing";
@@ -713,6 +1105,8 @@
         ui.over.classList.add("hidden");
         ui.pause.classList.add("hidden");
         ui.shop.classList.add("hidden");
+        ui.quiz.classList.add("hidden");
+        ui.vocab.classList.add("hidden");
         last = performance.now();
       }
 
@@ -1547,12 +1941,22 @@
       function handleKey(e) {
         const key = e.key.toLowerCase();
         if (["arrowleft", "arrowright", "arrowup", "arrowdown", " ", "a", "d", "w", "s"].includes(key)) e.preventDefault();
+        if (!ui.quiz.classList.contains("hidden")) {
+          const choice = Number(key);
+          if (choice >= 1 && choice <= 4) ui.quizOptions.children[choice - 1]?.click();
+          else if (key === "escape") closeQuiz();
+          return;
+        }
+        if (!ui.vocab.classList.contains("hidden")) {
+          if (key === "escape") closeVocabulary();
+          return;
+        }
         if (!ui.shop.classList.contains("hidden")) {
           if (key === "escape") closeShop();
           return;
         }
-        if (state === "menu" && (key === "enter" || key === " ")) return startGame();
-        if (state === "over" && (key === "enter" || key === " ")) return startGame();
+        if (state === "menu" && (key === "enter" || key === " ")) return requestRun();
+        if (state === "over" && (key === "enter" || key === " ")) return requestRun();
         if (key === "p" || key === "escape") return togglePause();
         if (key === "arrowleft" || key === "a") move(-1);
         if (key === "arrowright" || key === "d") move(1);
@@ -1575,11 +1979,12 @@
       });
       addEventListener("keydown", handleKey);
       addEventListener("resize", resize);
-      $("startBtn").addEventListener("click", startGame);
-      $("restartBtn").addEventListener("click", startGame);
+      $("startBtn").addEventListener("click", requestRun);
+      $("restartBtn").addEventListener("click", requestRun);
       $("resumeBtn").addEventListener("click", () => togglePause(true));
       $("pauseBtn").addEventListener("click", () => togglePause());
       document.querySelectorAll(".shop-open").forEach(button => button.addEventListener("click", openShop));
+      document.querySelectorAll(".vocab-open").forEach(button => button.addEventListener("click", openVocabulary));
       document.querySelectorAll("[data-character]").forEach(button => button.addEventListener("click", () => chooseCharacter(button.dataset.character)));
       ui.accessoryShop.addEventListener("click", event => {
         const accessoryButton = event.target.closest("[data-accessory]");
@@ -1588,6 +1993,13 @@
         else if (removeButton) removeAccessory(removeButton.dataset.remove);
       });
       $("shopClose").addEventListener("click", closeShop);
+      $("vocabClose").addEventListener("click", closeVocabulary);
+      $("vocabReset").addEventListener("click", () => {
+        vocabularyStats = {};
+        localStorage.removeItem("metro-rush-vocabulary-stats");
+        renderVocabularyOverview();
+        showToast("Vocabulary statistics reset");
+      });
       document.addEventListener("visibilitychange", () => {
         if (document.hidden && state === "playing") togglePause();
       });
