@@ -2153,7 +2153,6 @@
 
       function handleKey(e) {
         const key = e.key.toLowerCase();
-        if (["arrowleft", "arrowright", "arrowup", "arrowdown", " ", "a", "d", "w", "s"].includes(key)) e.preventDefault();
         if (!ui.quiz.classList.contains("hidden")) {
           const choice = Number(key);
           if (choice >= 1 && choice <= 4) ui.quizOptions.children[choice - 1]?.click();
@@ -2172,6 +2171,7 @@
           if (key === "escape") closeShop();
           return;
         }
+        if (["arrowleft", "arrowright", "arrowup", "arrowdown", " ", "a", "d", "w", "s"].includes(key)) e.preventDefault();
         if (state === "menu" && (key === "enter" || key === " ")) return requestRun();
         if (state === "over" && (key === "enter" || key === " ")) return requestRun();
         if (key === "p" || key === "escape") return togglePause();
