@@ -521,6 +521,35 @@
     .vocab-table .wrong { color: var(--cp-danger); }
     .vocab-actions { display: flex; gap: 8px; margin-top: 12px; }
     .vocab-actions button { margin-top: 0; }
+    .cheat-form { display: grid; gap: 10px; margin-top: 20px; }
+    .cheat-input {
+      width: 100%;
+      padding: 13px 14px;
+      border: 1px solid var(--cp-border);
+      border-radius: 0.625rem;
+      outline: none;
+      background: var(--cp-surface-soft);
+      color: var(--cp-text);
+      font: 700 16px Consolas, "Courier New", Courier, monospace;
+      text-align: center;
+    }
+    .cheat-input:focus { border-color: var(--cp-accent); box-shadow: 0 0 0 3px var(--cp-accent-soft); }
+    .cheat-feedback { min-height: 18px; margin: 2px 0 0; color: var(--cp-danger); font-size: 11px; font-weight: 800; }
+    .cheat-active {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin: 0 0 14px;
+      padding: 6px 10px;
+      border: 1px solid var(--cp-success);
+      border-radius: 0.625rem;
+      color: var(--cp-success);
+      font-size: 10px;
+      font-weight: 900;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+    }
+    .cheat-active.hidden { display: none; }
 
     @media (max-width: 650px) {
       .topbar { inset-inline: 12px; }
@@ -583,7 +612,7 @@
 
     <section class="overlay" id="startOverlay">
       <div class="card">
-        <div class="eyebrow"><i class="pulse"></i> Line 7 departing</div>
+        <div class="eyebrow" id="secretTrigger"><i class="pulse"></i> Line 7 departing</div>
         <h1>Metro<br><span>Rush</span></h1>
         <p class="intro">Dash through the midnight rail yard. Dodge trains, clear barriers, collect coins, and chase your longest run.</p>
         <div class="controls">
@@ -660,10 +689,25 @@
       </div>
     </section>
 
+    <section class="overlay hidden" id="cheatOverlay">
+      <div class="card">
+        <div class="eyebrow">Restricted platform</div>
+        <h1 class="shop-heading">Conductor <span>access</span></h1>
+        <p class="intro">Enter the secret word to unlock free runner and outfit purchases for this session.</p>
+        <form class="cheat-form" id="cheatForm">
+          <input class="cheat-input" id="cheatInput" type="password" autocomplete="off" spellcheck="false" aria-label="Secret word" placeholder="Secret word">
+          <button class="primary" type="submit">Unlock shop</button>
+          <button class="secondary" id="cheatClose" type="button">Cancel</button>
+          <p class="cheat-feedback" id="cheatFeedback"></p>
+        </form>
+      </div>
+    </section>
+
     <section class="overlay hidden" id="shopOverlay">
       <div class="card shop-card">
         <div class="eyebrow">Runner collection</div>
         <h1 class="shop-heading">Choose your <span>style</span></h1>
+        <div class="cheat-active hidden" id="cheatActive">Conductor mode · free purchases</div>
         <div class="wallet">Available coins <strong id="walletValue">0</strong></div>
         <div class="character-grid">
           <article class="character-card" data-card="runner">
@@ -709,6 +753,8 @@
         quizOptions: $("quizOptions"), quizFeedback: $("quizFeedback"),
         vocab: $("vocabOverlay"), vocabBody: $("vocabTableBody"),
         vocabCorrect: $("vocabCorrect"), vocabWrong: $("vocabWrong"),
+        cheat: $("cheatOverlay"), cheatInput: $("cheatInput"), cheatFeedback: $("cheatFeedback"),
+        cheatActive: $("cheatActive"),
         power: $("powerWrap"), powerName: $("powerName"), powerTime: $("powerTime"),
         powerFill: $("powerFill"), flash: $("flash"), toast: $("toast"),
         finalScore: $("finalScore"), finalCoins: $("finalCoins"), finalWallet: $("finalWallet"), finalBest: $("finalBest"),
@@ -966,6 +1012,9 @@
       let quizLocked = false;
       let learningReturn = "menu";
       let lastVocabularyId = -1;
+      let cheatMode = false;
+      let secretTapCount = 0;
+      let secretTapTimer = null;
       let ownedAccessories;
       let characterLoadouts;
       try {
@@ -1226,6 +1275,44 @@
         (learningReturn === "over" ? ui.over : ui.start).classList.remove("hidden");
       }
 
+      function openCheatAccess() {
+        secretTapCount = 0;
+        clearTimeout(secretTapTimer);
+        ui.start.classList.add("hidden");
+        ui.cheatFeedback.textContent = "";
+        ui.cheatInput.value = "";
+        ui.cheat.classList.remove("hidden");
+        setTimeout(() => ui.cheatInput.focus(), 50);
+      }
+
+      function closeCheatAccess() {
+        ui.cheat.classList.add("hidden");
+        ui.start.classList.remove("hidden");
+      }
+
+      function registerSecretTap() {
+        secretTapCount++;
+        clearTimeout(secretTapTimer);
+        if (secretTapCount >= 5) {
+          openCheatAccess();
+          return;
+        }
+        secretTapTimer = setTimeout(() => { secretTapCount = 0; }, 4000);
+      }
+
+      function submitCheat(event) {
+        event.preventDefault();
+        if (ui.cheatInput.value.trim().toLocaleLowerCase() !== "charly") {
+          ui.cheatFeedback.textContent = "Secret word not recognized.";
+          ui.cheatInput.select();
+          return;
+        }
+        cheatMode = true;
+        ui.cheat.classList.add("hidden");
+        showToast("Conductor mode activated");
+        openShop();
+      }
+
       function startGame() {
         reset();
         state = "playing";
@@ -1235,6 +1322,7 @@
         ui.shop.classList.add("hidden");
         ui.quiz.classList.add("hidden");
         ui.vocab.classList.add("hidden");
+        ui.cheat.classList.add("hidden");
         last = performance.now();
       }
 
@@ -1272,13 +1360,14 @@
       }
 
       function renderShop() {
-        ui.wallet.textContent = wallet;
+        ui.wallet.textContent = cheatMode ? "∞" : wallet;
+        ui.cheatActive.classList.toggle("hidden", !cheatMode);
         document.querySelectorAll("[data-character]").forEach(button => {
           const id = button.dataset.character;
           const unlocked = unlockedCharacters.includes(id);
           const selected = selectedCharacter === id;
           button.className = `character-action${selected ? " active" : !unlocked ? " buy" : ""}`;
-          button.textContent = selected ? "Selected" : unlocked ? "Select" : `Buy · ${characterDefs[id].cost}`;
+          button.textContent = selected ? "Selected" : unlocked ? "Select" : cheatMode ? "Unlock free" : `Buy · ${characterDefs[id].cost}`;
           button.disabled = selected;
           document.querySelector(`[data-card="${id}"]`).classList.toggle("selected", selected);
         });
@@ -1304,10 +1393,10 @@
                     <span class="accessory-icon">${item.icon}</span>
                     <span class="accessory-info">
                       <span class="accessory-name">${item.name}</span>
-                      <span class="accessory-price">${owned ? "Owned" : `${item.price.toLocaleString()} coins`}</span>
+                      <span class="accessory-price">${owned ? "Owned" : cheatMode ? "Conductor pass" : `${item.price.toLocaleString()} coins`}</span>
                     </span>
                     <button class="accessory-action${equipped ? " active" : !owned ? " buy" : ""}" data-accessory="${item.id}" ${equipped ? "disabled" : ""}>
-                      ${equipped ? "Equipped" : owned ? "Equip" : "Buy"}
+                      ${equipped ? "Equipped" : owned ? "Equip" : cheatMode ? "Unlock free" : "Buy"}
                     </button>
                   </article>`;
               }).join("")}
@@ -1319,11 +1408,11 @@
         const item = accessoriesById[id];
         if (!item) return;
         if (!ownedAccessories.includes(id)) {
-          if (wallet < item.price) {
+          if (!cheatMode && wallet < item.price) {
             showToast(`${(item.price - wallet).toLocaleString()} more coins needed`);
             return;
           }
-          wallet -= item.price;
+          if (!cheatMode) wallet -= item.price;
           ownedAccessories.push(id);
           showToast(`${item.name} unlocked`);
         }
@@ -1357,11 +1446,11 @@
         const definition = characterDefs[id];
         if (!definition) return;
         if (!unlockedCharacters.includes(id)) {
-          if (wallet < definition.cost) {
+          if (!cheatMode && wallet < definition.cost) {
             showToast(`${definition.cost - wallet} more coins needed`);
             return;
           }
-          wallet -= definition.cost;
+          if (!cheatMode) wallet -= definition.cost;
           unlockedCharacters.push(id);
           showToast("Runner unlocked");
         }
@@ -2071,6 +2160,10 @@
           else if (key === "escape") closeQuiz();
           return;
         }
+        if (!ui.cheat.classList.contains("hidden")) {
+          if (key === "escape") closeCheatAccess();
+          return;
+        }
         if (!ui.vocab.classList.contains("hidden")) {
           if (key === "escape") closeVocabulary();
           return;
@@ -2107,6 +2200,9 @@
       $("restartBtn").addEventListener("click", requestRun);
       $("resumeBtn").addEventListener("click", () => togglePause(true));
       $("pauseBtn").addEventListener("click", () => togglePause());
+      $("secretTrigger").addEventListener("click", registerSecretTap);
+      $("cheatForm").addEventListener("submit", submitCheat);
+      $("cheatClose").addEventListener("click", closeCheatAccess);
       document.querySelectorAll(".shop-open").forEach(button => button.addEventListener("click", openShop));
       document.querySelectorAll(".vocab-open").forEach(button => button.addEventListener("click", openVocabulary));
       document.querySelectorAll("[data-character]").forEach(button => button.addEventListener("click", () => chooseCharacter(button.dataset.character)));
