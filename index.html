@@ -978,13 +978,22 @@
         const word = words.sort((a, b) => b.length - a.length)[0] || text;
         let typo;
         if (word.length === 1) typo = word === "I" ? "l" : `${word}${word}`;
-        else if (word.length === 2) typo = word[1] + word[0];
         else {
-          const index = Math.max(1, Math.floor(word.length / 2) - 1);
-          typo = word.slice(0, index) + word[index + 1] + word[index] + word.slice(index + 2);
+          const candidates = Array.from({ length: word.length - 1 }, (_, index) => index)
+            .filter(index => word[index].toLocaleLowerCase() !== word[index + 1].toLocaleLowerCase())
+            .sort((a, b) => Math.abs(a - word.length / 2) - Math.abs(b - word.length / 2));
+          if (candidates.length) {
+            const index = candidates[0];
+            typo = word.slice(0, index) + word[index + 1] + word[index] + word.slice(index + 2);
+          } else {
+            typo = word.slice(0, -1);
+          }
         }
-        const result = text.replace(word, typo);
-        return result === text ? text.replace(word, word.slice(0, -1)) : result;
+        return text.replace(word, typo);
+      }
+
+      function normalizeAnswer(text) {
+        return text.normalize("NFKC").toLocaleLowerCase().replace(/\s+/g, " ").trim();
       }
 
       function createQuestion() {
@@ -993,24 +1002,30 @@
           item = vocabulary[Math.floor(Math.random() * vocabulary.length)];
         } while (vocabulary.length > 1 && item.id === lastVocabularyId);
         lastVocabularyId = item.id;
-        const askGerman = Math.random() < .5;
-        const answerKey = askGerman ? "german" : "english";
+        const askForGerman = Math.random() < 1 / 3;
+        const answerKey = askForGerman ? "german" : "english";
         const correct = item[answerKey];
-        const wrongAnswers = shuffle(vocabulary.filter(entry => entry.id !== item.id))
-          .map(entry => entry[answerKey])
-          .filter((answer, index, all) => answer !== correct && all.indexOf(answer) === index)
-          .slice(0, 2);
-        const options = shuffle([
-          { text: correct, correct: true },
-          { text: makeMisspelling(correct), correct: false },
-          ...wrongAnswers.map(text => ({ text, correct: false }))
-        ]);
+        const options = [];
+        const usedAnswers = new Set();
+        const addOption = (text, isCorrect = false) => {
+          const normalized = normalizeAnswer(text);
+          if (!normalized || usedAnswers.has(normalized)) return false;
+          usedAnswers.add(normalized);
+          options.push({ text, correct: isCorrect });
+          return true;
+        };
+        addOption(correct, true);
+        addOption(makeMisspelling(correct));
+        for (const entry of shuffle(vocabulary.filter(candidate => candidate.id !== item.id))) {
+          addOption(entry[answerKey]);
+          if (options.length === 4) break;
+        }
         return {
           item,
-          prompt: askGerman ? item.english : item.german,
-          direction: askGerman ? "Choose the correct German translation" : "Choose the correct English translation",
+          prompt: askForGerman ? item.english : item.german,
+          direction: askForGerman ? "Choose the correct German translation" : "Choose the correct English translation",
           correct,
-          options
+          options: shuffle(options)
         };
       }
 
